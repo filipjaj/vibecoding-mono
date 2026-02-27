@@ -1,0 +1,12 @@
+{
+  "name": "humble",
+  "private": true,
+  "workspaces": ["apps/*"],
+  "scripts": {
+    "dev": "bun run --parallel --filter '*' dev",
+    "dev:web": "bun run --filter web dev",
+    "dev:api": "bun run --filter api dev",
+    "build": "bun run --parallel --filter '*' build",
+    "deploy:api": "bun run --filter api deploy"
+  }
+}

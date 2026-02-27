@@ -1,0 +1,36 @@
+# Minimal designprofil — hurtigstart
+# Kopier denne og fyll ut bare det essensielle.
+# Felter merket PÅKREVD må fylles ut. Resten er valgfritt men anbefalt.
+
+meta:
+  name: ""                    # PÅKREVD — Profilnavn
+  mood: ""                    # PÅKREVD — 3-5 ord som beskriver følelsen
+
+colors:                       # PÅKREVD
+  background:
+    primary: ""               # Hovedbakgrunn
+    secondary: ""             # Kort, modaler
+    tertiary: ""              # Hover, inset
+  text:
+    primary: ""               # Overskrifter, viktig tekst
+    secondary: ""             # Brødtekst, beskrivelser
+    muted: ""                 # Placeholder, hint
+    inverse: ""               # Tekst på mørk/aksent bakgrunn
+  accent:
+    primary: ""               # Knapper, lenker, CTA
+    hover: ""                 # Hover-tilstand
+    subtle: ""                # Badge-bakgrunn, subtle highlight
+  border:
+    default: ""               # Standard border
+    strong: ""                # Aktiv, fokus
+
+typography:                   # PÅKREVD
+  fonts:
+    heading: ""               # F.eks. "Plus Jakarta Sans"
+    body: ""                  # F.eks. "Inter"
+
+borders:                      # PÅKREVD
+  radius:
+    small: ""                 # F.eks. "4px" eller "0"
+    medium: ""                # F.eks. "8px"
+    large: ""                 # F.eks. "12px"

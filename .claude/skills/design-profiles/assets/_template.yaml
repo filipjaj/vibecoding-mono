@@ -1,0 +1,257 @@
+# ============================================================
+# Designprofil — Mal
+# ============================================================
+# Fyll ut dette skjemaet for å definere en komplett designprofil.
+# Alle felt merket (påkrevd) MÅ fylles ut.
+# Se references/profile-schema.md for detaljert dokumentasjon.
+# Se references/example-profiles.md for inspirasjon.
+#
+# Tips:
+#   Farger:  coolors.co — generer og utforsk fargepaletter
+#            realtimecolors.com — forhåndsvis farger på en nettside
+#            Chrome-extension ColorZilla — plukk farger fra eksisterende sider
+#   Fonter:  fontpair.co — finn font-kombinasjoner
+#            fonts.google.com — bla gjennom Google Fonts
+#   Inspo:   dribbble.com, awwwards.com, godly.website
+# ============================================================
+
+meta:
+  name: ""                    # (påkrevd) Unikt navn på profilen
+  description: ""             # (påkrevd) Kort beskrivelse av stilen
+  mood: ""                    # (påkrevd) Emosjonelle stikkord, kommaseparert
+                              #   Eksempler: "rolig, sofistikert, luftig"
+                              #              "rå, direkte, ekspressiv"
+                              #              "vennlig, moderne, tillitsvekkende"
+  version: "1.0"
+  author: ""                  # Hvem laget profilen
+
+# ============================================================
+# FARGER (påkrevd)
+# Definer semantiske farger — ikke bare "rød" og "blå",
+# men hva fargene BETYR i designet ditt.
+# ============================================================
+colors:
+  background:
+    primary: ""               # (påkrevd) Hovedbakgrunn
+    secondary: ""             # Sekundær bakgrunn (kort, modaler)
+    tertiary: ""              # Tertiær (hover-states, subtle fills)
+  text:
+    primary: ""               # (påkrevd) Hovedtekst
+    secondary: ""             # Sekundærtekst (hjelpetekst)
+    muted: ""                 # Dempet tekst (placeholders)
+    inverse: ""               # Tekst på mørk bakgrunn
+  accent:
+    primary: ""               # (påkrevd) Hovedaksent (CTA, lenker)
+    hover: ""                 # Hover-state for aksent
+    subtle: ""                # Subtil aksent (badges, highlights)
+  border:
+    default: ""               # Standard border-farge
+    strong: ""                # Sterkere border
+  status:
+    success: ""               # Suksess-farge
+    warning: ""               # Advarsel-farge
+    error: ""                 # Feil-farge
+    info: ""                  # Informasjon-farge
+
+# ============================================================
+# TYPOGRAFI (påkrevd)
+# Velg fonter og definer typografisk skala.
+# Husk å inkludere Google Fonts import-URL!
+# ============================================================
+typography:
+  fonts:
+    heading:
+      family: ""              # (påkrevd) Font for overskrifter
+      import: ""              # (påkrevd) Google Fonts import-URL
+    body:
+      family: ""              # (påkrevd) Font for brødtekst
+      import: ""              # (påkrevd) Google Fonts import-URL
+    mono:                     # (valgfri) Font for kodeblokker
+      family: ""
+      import: ""
+  scale:
+    display:
+      size: ""                # Størst — hero-overskrifter (f.eks. "3.5rem")
+      weight:                 # Vekt (f.eks. 700)
+      line-height:            # Linjehøyde (f.eks. 1.1)
+      letter-spacing: ""      # Bokstavmellomrom (f.eks. "-0.02em")
+      text-transform: ""      # "uppercase", "none", etc.
+    h1:
+      size: ""
+      weight:
+      line-height:
+    h2:
+      size: ""
+      weight:
+      line-height:
+    h3:
+      size: ""
+      weight:
+      line-height:
+    body:
+      size: ""                # (påkrevd) Brødtekst-størrelse (f.eks. "1rem")
+      weight:                 # (påkrevd) Brødtekst-vekt (f.eks. 400)
+      line-height:            # (påkrevd) Brødtekst-linjehøyde (f.eks. 1.6)
+    caption:
+      size: ""
+      weight:
+      line-height:
+      text-transform: ""
+      letter-spacing: ""
+
+# ============================================================
+# SPACING (påkrevd)
+# Definer grunnleggende mål for layout og mellomrom.
+# ============================================================
+spacing:
+  unit: ""                    # (påkrevd) Base spacing unit (f.eks. "8px")
+  section-padding: ""         # Vertikal padding mellom seksjoner
+  content-max-width: ""       # Maks bredde for innhold
+  content-narrow: ""          # Smal innholdsbredde (artikler)
+
+# ============================================================
+# BORDERS (påkrevd)
+# Avrundinger og kantlinjer.
+# ============================================================
+borders:
+  radius:
+    small: ""                 # (påkrevd) Liten radius
+    medium: ""                # (påkrevd) Medium radius
+    large: ""                 # Stor radius
+    pill: ""                  # Pill-form (tags, badges)
+    none: "0"
+  width:
+    default: ""               # Standard border-bredde
+    strong: ""                # Tykk border
+  style-notes: ""             # Beskriv designfilosofien for borders
+                              #   Eksempel: "Skarpe hjørner. Editorial, ikke lekent."
+                              #   Eksempel: "Avrundet og vennlig. Pill for tags."
+
+# ============================================================
+# SHADOWS (påkrevd)
+# Skygger gir dybde — eller grafiske elementer.
+# ============================================================
+shadows:
+  small: ""                   # Subtil skygge
+  medium: ""                  # Medium skygge
+  large: ""                   # Stor skygge
+  style-notes: ""             # Beskriv skyggenes rolle
+                              #   Eksempel: "Subtile, lagdelte. Aldri dramatisk."
+                              #   Eksempel: "Hard offset, aldri blur."
+
+# ============================================================
+# ANIMASJON (påkrevd)
+# Timing og bevegelse.
+# ============================================================
+animation:
+  duration:
+    fast: ""                  # Rask animasjon (f.eks. "150ms")
+    default: ""               # (påkrevd) Standard varighet
+    slow: ""                  # Langsom animasjon
+  easing:
+    default: ""               # (påkrevd) Standard easing-kurve
+    in: ""                    # Easing inn
+    out: ""                   # Easing ut
+  style-notes: ""             # Beskriv bevegelsesfilosofien
+                              #   Eksempel: "Smooth og subtilt. Spring for modaler."
+                              #   Eksempel: "Snappy eller ingenting. Ting bare skjer."
+
+# ============================================================
+# KOMPONENT-RETNINGSLINJER (anbefalt)
+# Spesifikke regler per komponenttype.
+# Disse overrider generelle regler.
+# Referer til farger og verdier definert over.
+# ============================================================
+component-guidelines:
+  buttons:
+    primary:
+      background: ""          # Referanse til farge (f.eks. "accent.primary")
+      text: ""
+      border-radius: ""       # Referanse til radius (f.eks. "radius.medium")
+      padding: ""
+      hover: ""               # Beskriv hover-effekt
+    secondary:
+      background: ""
+      text: ""
+      border: ""
+    style-notes: ""
+
+  cards:
+    background: ""
+    border: ""
+    border-radius: ""
+    padding: ""
+    hover: ""
+    style-notes: ""
+
+  hero:
+    padding: ""
+    text-align: ""
+    max-width: ""
+    style-notes: ""
+
+  navigation:
+    background: ""
+    height: ""
+    style-notes: ""
+
+  inputs:
+    background: ""
+    border: ""
+    border-radius: ""
+    focus: ""
+    padding: ""
+    style-notes: ""
+
+  modals:
+    background: ""
+    border-radius: ""
+    padding: ""
+    overlay: ""                   # Farge for bakgrunn-overlay (f.eks. "rgba(0,0,0,0.5)")
+    max-width: ""
+    style-notes: ""
+
+  tables:
+    header-background: ""
+    border: ""
+    cell-padding: ""
+    style-notes: ""
+
+  footer:
+    background: ""
+    padding: ""
+    border-top: ""
+    style-notes: ""
+
+  badges:
+    background: ""
+    text: ""
+    border-radius: ""
+    padding: ""
+    font: ""
+    style-notes: ""
+
+  toast:
+    background: ""
+    border: ""
+    border-radius: ""
+    style-notes: ""
+
+  sidebar:                        # Valgfri — for dashboard-layouts
+    background: ""
+    width: ""
+    border-right: ""
+    active-item: ""
+    style-notes: ""
+
+  tabs:                           # Valgfri
+    active-background: ""
+    active-text: ""
+    inactive-text: ""
+    style-notes: ""
+
+  tooltips:                       # Valgfri
+    background: ""
+    text: ""
+    border-radius: ""
+    style-notes: ""
