@@ -120,3 +120,9 @@
     opacity: 0.35;
   }
 }
+
+@media (prefers-reduced-motion: reduce) {
+  @keyframes gradient-drift {
+    0%, 100% { transform: none; opacity: 0.4; }
+  }
+}
