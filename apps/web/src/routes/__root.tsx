@@ -1,8 +1,11 @@
-import { HeadContent, Outlet, Scripts, createRootRoute } from '@tanstack/react-router'
+import { HeadContent, Outlet, Scripts, createRootRoute, useRouterState } from '@tanstack/react-router'
 import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools'
 import { TanStackDevtools } from '@tanstack/react-devtools'
+import { AppShell } from '@/components/app-shell'
 
 import appCss from '../styles.css?url'
+
+const noShellRoutes = ['/login']
 
 export const Route = createRootRoute({
   head: () => ({
@@ -31,7 +34,17 @@ export const Route = createRootRoute({
 })
 
 function RootLayout() {
-  return <Outlet />
+  const pathname = useRouterState({ select: (s) => s.location.pathname })
+
+  if (noShellRoutes.some((r) => pathname.startsWith(r))) {
+    return <Outlet />
+  }
+
+  return (
+    <AppShell>
+      <Outlet />
+    </AppShell>
+  )
 }
 
 function RootDocument({ children }: { children: React.ReactNode }) {
