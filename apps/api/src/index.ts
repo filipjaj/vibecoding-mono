@@ -1,6 +1,14 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { createAuth } from "./lib/auth";
+import { clubsRouter, clubPreviewRouter } from "./routes/clubs";
+import { mediaRouter } from "./routes/media";
+import { scheduleRouter } from "./routes/schedule";
+import { eventsRouter } from "./routes/events";
+import { reviewsRouter } from "./routes/reviews";
+import { discussionsRouter } from "./routes/discussions";
+import { usersRouter } from "./routes/users";
+import { feedRouter } from "./routes/feed";
 
 type Bindings = {
   DATABASE_URL: string;
@@ -28,13 +36,28 @@ app.use(
   })
 );
 
+// Auth
 app.on(["GET", "POST"], "/api/auth/**", (c) => {
   const auth = createAuth(c.env);
   return auth.handler(c.req.raw);
 });
 
+// Health check
 app.get("/api/health", (c) => {
   return c.json({ status: "ok" });
 });
+
+// Public routes (no auth required)
+app.route("/api", clubPreviewRouter);
+
+// Protected API routes
+app.route("/api/clubs", clubsRouter);
+app.route("/api/clubs", scheduleRouter);
+app.route("/api/media", mediaRouter);
+app.route("/api", eventsRouter);
+app.route("/api", reviewsRouter);
+app.route("/api", discussionsRouter);
+app.route("/api", usersRouter);
+app.route("/api", feedRouter);
 
 export default app;
