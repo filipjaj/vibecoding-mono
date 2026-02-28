@@ -61,6 +61,22 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   <DropdownMenuLabel>{session.user.name}</DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
+                    onSelect={() => router.navigate({ to: "/clubs/new" })}
+                  >
+                    New Club
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onSelect={() =>
+                      router.navigate({
+                        to: "/users/$userId",
+                        params: { userId: session.user.id },
+                      })
+                    }
+                  >
+                    Profile
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
                     onSelect={() => {
                       signOut().then(() => router.navigate({ to: "/login" }));
                     }}
