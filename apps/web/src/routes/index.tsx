@@ -14,7 +14,7 @@ function Dashboard() {
 
 function SignedOutHome() {
   return (
-    <div className="-mx-4 -mt-8 sm:-mx-6">
+    <div className="-mx-4 -mt-8 -mb-8 sm:-mx-6 sm:-mb-8">
       {/* Hero */}
       <section className="relative flex min-h-[calc(100vh-4rem)] flex-col items-center justify-center overflow-hidden px-4 text-center">
         {/* Gradient blobs */}
