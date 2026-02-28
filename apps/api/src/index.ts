@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
+import { createAuth } from "./lib/auth";
 
 type Bindings = {
   DATABASE_URL: string;
@@ -26,6 +27,11 @@ app.use(
     credentials: true,
   })
 );
+
+app.on(["GET", "POST"], "/api/auth/**", (c) => {
+  const auth = createAuth(c.env);
+  return auth.handler(c.req.raw);
+});
 
 app.get("/api/health", (c) => {
   return c.json({ status: "ok" });
