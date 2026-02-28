@@ -5,25 +5,15 @@ import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { useScrollReveal } from "@/hooks/use-scroll-reveal";
 
-const COVERS: {
-  title: string;
-  color: string;
-  rotation: number;
-  top: string;
-  left?: string;
-  right?: string;
-  size: string;
-  duration: number;
-  mobileHidden: boolean;
-}[] = [
-  { title: "Naiv. Super.", color: "bg-chart-1/15", rotation: -5, top: "8%", left: "5%", size: "w-20 h-28 sm:w-24 sm:h-34", duration: 14, mobileHidden: false },
-  { title: "Normal People", color: "bg-chart-2/15", rotation: 4, top: "15%", right: "8%", size: "w-18 h-26 sm:w-22 sm:h-32", duration: 17, mobileHidden: false },
-  { title: "Parasite", color: "bg-chart-4/15", rotation: -3, top: "55%", left: "8%", size: "w-16 h-24 sm:w-20 sm:h-28", duration: 12, mobileHidden: false },
-  { title: "Spirited Away", color: "bg-chart-3/15", rotation: 7, top: "60%", right: "6%", size: "w-18 h-26 sm:w-24 sm:h-34", duration: 19, mobileHidden: false },
-  { title: "Doppler", color: "bg-chart-5/15", rotation: -8, top: "35%", left: "3%", size: "w-14 h-20 sm:w-18 sm:h-26", duration: 16, mobileHidden: false },
-  { title: "The Secret History", color: "bg-chart-1/12", rotation: 3, top: "40%", right: "4%", size: "w-16 h-24 sm:w-20 sm:h-28", duration: 13, mobileHidden: true },
-  { title: "Min kamp", color: "bg-chart-4/12", rotation: -4, top: "75%", left: "15%", size: "w-14 h-20 sm:w-18 sm:h-26", duration: 20, mobileHidden: true },
-  { title: "Kafka on the Shore", color: "bg-chart-2/12", rotation: 6, top: "78%", right: "12%", size: "w-14 h-20 sm:w-16 sm:h-24", duration: 15, mobileHidden: true },
+const COVERS = [
+  { title: "Naiv. Super.", coverUrl: "https://covers.openlibrary.org/b/isbn/9788202166984-M.jpg", rotation: -5, top: "8%", left: "5%", size: "w-20 h-28 sm:w-24 sm:h-34", duration: 14, mobileHidden: false },
+  { title: "Normal People", coverUrl: "https://image.tmdb.org/t/p/w185/c4mk4EQVIM11yd3W43DDdqDazDU.jpg", rotation: 4, top: "15%", right: "8%", size: "w-18 h-26 sm:w-22 sm:h-32", duration: 17, mobileHidden: false },
+  { title: "Parasite", coverUrl: "https://image.tmdb.org/t/p/w185/7IiTTgloJzvGI1TAYymCfbfl3vT.jpg", rotation: -3, top: "55%", left: "8%", size: "w-16 h-24 sm:w-20 sm:h-28", duration: 12, mobileHidden: false },
+  { title: "Spirited Away", coverUrl: "https://image.tmdb.org/t/p/w185/39wmItIWsg5sZMyRUHLkWBcuVCM.jpg", rotation: 7, top: "60%", right: "6%", size: "w-18 h-26 sm:w-24 sm:h-34", duration: 19, mobileHidden: false },
+  { title: "Doppler", coverUrl: "https://covers.openlibrary.org/b/isbn/9788202245351-M.jpg", rotation: -8, top: "35%", left: "3%", size: "w-14 h-20 sm:w-18 sm:h-26", duration: 16, mobileHidden: false },
+  { title: "Amélie", coverUrl: "https://image.tmdb.org/t/p/w185/nSxDa3M9aMvGVLoItzWTepQ5h5d.jpg", rotation: 3, top: "40%", right: "4%", size: "w-16 h-24 sm:w-20 sm:h-28", duration: 13, mobileHidden: true },
+  { title: "Drive", coverUrl: "https://image.tmdb.org/t/p/w185/602vevIURmpDfzbnv5Ubi6wIkQm.jpg", rotation: -4, top: "75%", left: "15%", size: "w-14 h-20 sm:w-18 sm:h-26", duration: 20, mobileHidden: true },
+  { title: "In the Mood for Love", coverUrl: "https://image.tmdb.org/t/p/w185/iYypPT4bhqXfq1b6EnmxvRt6b2Y.jpg", rotation: 6, top: "78%", right: "12%", size: "w-14 h-20 sm:w-16 sm:h-24", duration: 15, mobileHidden: true },
 ];
 
 export const Route = createFileRoute("/")({ component: Dashboard });
@@ -57,7 +47,7 @@ function SignedOutHome() {
         {COVERS.map((cover) => (
           <div
             key={cover.title}
-            className={`pointer-events-none absolute ${cover.size} ${cover.color} ${cover.mobileHidden ? "hidden sm:flex" : "flex"} items-center justify-center rounded-lg shadow-sm`}
+            className={`pointer-events-none absolute ${cover.size} ${cover.mobileHidden ? "hidden sm:block" : "block"} overflow-hidden rounded-lg shadow-md opacity-[0.18]`}
             style={{
               top: cover.top,
               left: cover.left,
@@ -66,9 +56,12 @@ function SignedOutHome() {
               animation: `gradient-drift ${cover.duration}s ease-in-out infinite`,
             }}
           >
-            <span className="text-[9px] sm:text-[10px] font-medium text-foreground/30 text-center leading-tight px-1.5">
-              {cover.title}
-            </span>
+            <img
+              src={cover.coverUrl}
+              alt=""
+              loading="lazy"
+              className="h-full w-full object-cover"
+            />
           </div>
         ))}
 
