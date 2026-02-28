@@ -8,10 +8,19 @@
     "deploy": "wrangler deploy"
   },
   "dependencies": {
-    "hono": "^4"
+    "@hono/zod-validator": "^0.7.6",
+    "@neondatabase/serverless": "^1.0.2",
+    "better-auth": "^1.4.20",
+    "drizzle-orm": "^0.45.1",
+    "hono": "^4.12.3",
+    "nanoid": "^5.1.6",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4",
+    "@types/node": "^25.3.3",
+    "dotenv": "^17.3.1",
+    "drizzle-kit": "^0.31.9",
     "wrangler": "^4"
   }
 }

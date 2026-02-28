@@ -2,7 +2,13 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 
 type Bindings = {
-  // Add your Cloudflare bindings here (KV, D1, R2, etc.)
+  DATABASE_URL: string;
+  BETTER_AUTH_SECRET: string;
+  BETTER_AUTH_URL: string;
+  GOOGLE_CLIENT_ID: string;
+  GOOGLE_CLIENT_SECRET: string;
+  TMDB_API_KEY?: string;
+  WEB_URL?: string;
 };
 
 const app = new Hono<{ Bindings: Bindings }>();
@@ -10,7 +16,14 @@ const app = new Hono<{ Bindings: Bindings }>();
 app.use(
   "/api/*",
   cors({
-    origin: ["http://localhost:3000"],
+    origin: (origin, c) => {
+      const allowed = [
+        "http://localhost:3000",
+        c.env.WEB_URL,
+      ].filter(Boolean) as string[];
+      return allowed.includes(origin) ? origin : "";
+    },
+    credentials: true,
   })
 );
 

@@ -7,6 +7,10 @@
     "dev:web": "bun run --filter web dev",
     "dev:api": "bun run --filter api dev",
     "build": "bun run --parallel --filter '*' build",
-    "deploy:api": "bun run --filter api deploy"
+    "deploy:api": "bun run --filter api deploy",
+    "db:generate": "cd apps/api && bunx drizzle-kit generate",
+    "db:migrate": "cd apps/api && bunx drizzle-kit migrate",
+    "db:push": "cd apps/api && bunx drizzle-kit push",
+    "db:studio": "cd apps/api && bunx drizzle-kit studio"
   }
 }
