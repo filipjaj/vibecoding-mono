@@ -15,6 +15,12 @@ type Env = {
 };
 
 export const authMiddleware = createMiddleware<Env>(async (c, next) => {
+  // Skip auth routes — Better Auth handles these on the main app
+  if (c.req.path.startsWith("/api/auth")) {
+    await next();
+    return;
+  }
+
   const auth = createAuth(c.env);
   const session = await auth.api.getSession({
     headers: c.req.raw.headers,
@@ -24,6 +30,11 @@ export const authMiddleware = createMiddleware<Env>(async (c, next) => {
     return c.json({ error: "Unauthorized" }, 401);
   }
 
-  c.set("user", session.user);
+  c.set("user", {
+    id: session.user.id,
+    name: session.user.name,
+    email: session.user.email,
+    image: session.user.image ?? null,
+  });
   await next();
 });

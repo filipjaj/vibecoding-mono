@@ -37,12 +37,27 @@ function Button({
   className,
   variant = "default",
   size = "default",
+  type,
   ...props
-}: ButtonPrimitive.Props & VariantProps<typeof buttonVariants>) {
+}: ButtonPrimitive.Props & VariantProps<typeof buttonVariants> & { type?: "button" | "submit" | "reset" }) {
+  // Base UI's Button forces type="button" on native buttons.
+  // For submit buttons, render a plain <button> to preserve form submission.
+  if (type === "submit") {
+    return (
+      <button
+        data-slot="button"
+        type="submit"
+        className={cn(buttonVariants({ variant, size, className }))}
+        {...(props as React.ButtonHTMLAttributes<HTMLButtonElement>)}
+      />
+    )
+  }
+
   return (
     <ButtonPrimitive
       data-slot="button"
       className={cn(buttonVariants({ variant, size, className }))}
+      type={type}
       {...props}
     />
   )

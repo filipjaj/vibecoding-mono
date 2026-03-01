@@ -1,11 +1,9 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { AppShell } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Card } from "@/components/ui/card";
 import { api } from "@/lib/api";
 
 export const Route = createFileRoute("/clubs/new")({ component: NewClubPage });
@@ -16,44 +14,70 @@ function NewClubPage() {
   const [description, setDescription] = useState("");
   const [mediaType, setMediaType] = useState<"book" | "film">("book");
   const [recurrenceRule, setRecurrenceRule] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    const club = await api<{ id: string }>("/api/clubs", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, description, mediaType, recurrenceRule }),
-    });
-    navigate({ to: "/clubs/$clubId", params: { clubId: club.id } });
+    setError(null);
+    setLoading(true);
+    try {
+      const club = await api<{ id: string }>("/api/clubs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name,
+          description: description || undefined,
+          mediaType,
+          recurrenceRule: recurrenceRule || undefined,
+        }),
+      });
+      navigate({ to: "/clubs/$clubId", params: { clubId: club.id } });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Kunne ikke opprette klubb");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
-    <AppShell>
-      <Card className="mx-auto max-w-lg p-6">
-        <h1 className="text-2xl font-bold mb-6">Create a Club</h1>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <Label htmlFor="name">Club Name</Label>
-            <Input id="name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Friday Film Club" required />
+    <div className="mx-auto max-w-lg">
+      <h1 className="text-3xl font-bold tracking-tight mb-2">Opprett en klubb</h1>
+      <p className="text-muted-foreground mb-8">Start en ny bok- eller filmklubb med venner.</p>
+
+      <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
+        <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="name">Klubbnavn</Label>
+            <Input id="name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Fredagens filmklubb" required />
           </div>
-          <div>
-            <Label htmlFor="description">Description</Label>
-            <Textarea id="description" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="What's this club about?" />
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="description">Beskrivelse</Label>
+            <Textarea id="description" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Hva handler klubben om?" />
           </div>
-          <div>
-            <Label>Media Type</Label>
+          <div className="flex flex-col gap-1.5">
+            <Label>Medietype</Label>
             <div className="flex gap-2 mt-1">
-              <Button type="button" variant={mediaType === "book" ? "default" : "outline"} onClick={() => setMediaType("book")}>Books</Button>
-              <Button type="button" variant={mediaType === "film" ? "default" : "outline"} onClick={() => setMediaType("film")}>Films</Button>
+              <button type="button" onClick={() => setMediaType("book")}
+                className={`flex-1 rounded-xl border-2 px-4 py-3 text-sm font-medium transition-colors ${mediaType === "book" ? "border-primary bg-primary/5 text-primary" : "border-border text-muted-foreground hover:border-primary/30"}`}>
+                Bøker
+              </button>
+              <button type="button" onClick={() => setMediaType("film")}
+                className={`flex-1 rounded-xl border-2 px-4 py-3 text-sm font-medium transition-colors ${mediaType === "film" ? "border-primary bg-primary/5 text-primary" : "border-border text-muted-foreground hover:border-primary/30"}`}>
+                Filmer
+              </button>
             </div>
           </div>
-          <div>
-            <Label htmlFor="recurrence">Recurrence (optional)</Label>
-            <Input id="recurrence" value={recurrenceRule} onChange={(e) => setRecurrenceRule(e.target.value)} placeholder="e.g. Every 2 weeks on Thursday at 19:00" />
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="recurrence">Gjentakelse (valgfritt)</Label>
+            <Input id="recurrence" value={recurrenceRule} onChange={(e) => setRecurrenceRule(e.target.value)} placeholder="f.eks. Annenhver torsdag kl. 19:00" />
           </div>
-          <Button type="submit" className="w-full">Create Club</Button>
+          {error && <p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</p>}
+          <Button type="submit" className="w-full mt-2" disabled={loading}>
+            {loading ? "Oppretter..." : "Opprett klubb"}
+          </Button>
         </form>
-      </Card>
-    </AppShell>
+      </div>
+    </div>
   );
 }

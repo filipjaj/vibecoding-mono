@@ -1,0 +1,13 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "shelf-web",
+  "compatibility_date": "2026-02-10",
+  "compatibility_flags": ["nodejs_compat"],
+  "main": ".output/server/index.mjs",
+  "assets": {
+    "directory": ".output/public/"
+  },
+  "routes": [
+    { "pattern": "shelf.filipjohn.com", "custom_domain": true }
+  ]
+}

@@ -32,12 +32,14 @@ app.use(
       ].filter(Boolean) as string[];
       return allowed.includes(origin) ? origin : "";
     },
+    allowHeaders: ["Content-Type", "Authorization"],
+    allowMethods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     credentials: true,
   })
 );
 
 // Auth
-app.on(["GET", "POST"], "/api/auth/**", (c) => {
+app.on(["GET", "POST"], "/api/auth/*", (c) => {
   const auth = createAuth(c.env);
   return auth.handler(c.req.raw);
 });

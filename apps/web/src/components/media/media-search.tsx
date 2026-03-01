@@ -26,8 +26,8 @@ export function MediaSearch({ mediaType, onSelect }: Props) {
   return (
     <div className="space-y-3">
       <form onSubmit={handleSearch} className="flex gap-2">
-        <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={`Search ${mediaType}s...`} />
-        <Button type="submit" disabled={loading}>{loading ? "..." : "Search"}</Button>
+        <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={`Søk etter ${mediaType === "book" ? "bøker" : "filmer"}...`} />
+        <Button type="submit" disabled={loading}>{loading ? "..." : "Søk"}</Button>
       </form>
       {results.map((item) => (
         <Card key={item.externalId} className="flex gap-3 p-3 cursor-pointer hover:bg-accent transition-colors" onClick={() => onSelect(item)}>
