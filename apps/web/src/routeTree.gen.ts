@@ -9,38 +9,191 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as ShelfRouteImport } from './routes/shelf'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as ClubsRouteImport } from './routes/clubs'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as UsersUserIdRouteImport } from './routes/users/$userId'
+import { Route as ProfileUserIdRouteImport } from './routes/profile.$userId'
+import { Route as MediaMediaIdRouteImport } from './routes/media/$mediaId'
+import { Route as JoinInviteCodeRouteImport } from './routes/join/$inviteCode'
+import { Route as EventsEventIdRouteImport } from './routes/events/$eventId'
+import { Route as ClubsNewRouteImport } from './routes/clubs/new'
+import { Route as ClubsClubIdRouteImport } from './routes/clubs/$clubId'
 
+const ShelfRoute = ShelfRouteImport.update({
+  id: '/shelf',
+  path: '/shelf',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ClubsRoute = ClubsRouteImport.update({
+  id: '/clubs',
+  path: '/clubs',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const UsersUserIdRoute = UsersUserIdRouteImport.update({
+  id: '/users/$userId',
+  path: '/users/$userId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProfileUserIdRoute = ProfileUserIdRouteImport.update({
+  id: '/profile/$userId',
+  path: '/profile/$userId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MediaMediaIdRoute = MediaMediaIdRouteImport.update({
+  id: '/media/$mediaId',
+  path: '/media/$mediaId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const JoinInviteCodeRoute = JoinInviteCodeRouteImport.update({
+  id: '/join/$inviteCode',
+  path: '/join/$inviteCode',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EventsEventIdRoute = EventsEventIdRouteImport.update({
+  id: '/events/$eventId',
+  path: '/events/$eventId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ClubsNewRoute = ClubsNewRouteImport.update({
+  id: '/new',
+  path: '/new',
+  getParentRoute: () => ClubsRoute,
+} as any)
+const ClubsClubIdRoute = ClubsClubIdRouteImport.update({
+  id: '/$clubId',
+  path: '/$clubId',
+  getParentRoute: () => ClubsRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/clubs': typeof ClubsRouteWithChildren
+  '/login': typeof LoginRoute
+  '/shelf': typeof ShelfRoute
+  '/clubs/$clubId': typeof ClubsClubIdRoute
+  '/clubs/new': typeof ClubsNewRoute
+  '/events/$eventId': typeof EventsEventIdRoute
+  '/join/$inviteCode': typeof JoinInviteCodeRoute
+  '/media/$mediaId': typeof MediaMediaIdRoute
+  '/profile/$userId': typeof ProfileUserIdRoute
+  '/users/$userId': typeof UsersUserIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/clubs': typeof ClubsRouteWithChildren
+  '/login': typeof LoginRoute
+  '/shelf': typeof ShelfRoute
+  '/clubs/$clubId': typeof ClubsClubIdRoute
+  '/clubs/new': typeof ClubsNewRoute
+  '/events/$eventId': typeof EventsEventIdRoute
+  '/join/$inviteCode': typeof JoinInviteCodeRoute
+  '/media/$mediaId': typeof MediaMediaIdRoute
+  '/profile/$userId': typeof ProfileUserIdRoute
+  '/users/$userId': typeof UsersUserIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/clubs': typeof ClubsRouteWithChildren
+  '/login': typeof LoginRoute
+  '/shelf': typeof ShelfRoute
+  '/clubs/$clubId': typeof ClubsClubIdRoute
+  '/clubs/new': typeof ClubsNewRoute
+  '/events/$eventId': typeof EventsEventIdRoute
+  '/join/$inviteCode': typeof JoinInviteCodeRoute
+  '/media/$mediaId': typeof MediaMediaIdRoute
+  '/profile/$userId': typeof ProfileUserIdRoute
+  '/users/$userId': typeof UsersUserIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/clubs'
+    | '/login'
+    | '/shelf'
+    | '/clubs/$clubId'
+    | '/clubs/new'
+    | '/events/$eventId'
+    | '/join/$inviteCode'
+    | '/media/$mediaId'
+    | '/profile/$userId'
+    | '/users/$userId'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/clubs'
+    | '/login'
+    | '/shelf'
+    | '/clubs/$clubId'
+    | '/clubs/new'
+    | '/events/$eventId'
+    | '/join/$inviteCode'
+    | '/media/$mediaId'
+    | '/profile/$userId'
+    | '/users/$userId'
+  id:
+    | '__root__'
+    | '/'
+    | '/clubs'
+    | '/login'
+    | '/shelf'
+    | '/clubs/$clubId'
+    | '/clubs/new'
+    | '/events/$eventId'
+    | '/join/$inviteCode'
+    | '/media/$mediaId'
+    | '/profile/$userId'
+    | '/users/$userId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ClubsRoute: typeof ClubsRouteWithChildren
+  LoginRoute: typeof LoginRoute
+  ShelfRoute: typeof ShelfRoute
+  EventsEventIdRoute: typeof EventsEventIdRoute
+  JoinInviteCodeRoute: typeof JoinInviteCodeRoute
+  MediaMediaIdRoute: typeof MediaMediaIdRoute
+  ProfileUserIdRoute: typeof ProfileUserIdRoute
+  UsersUserIdRoute: typeof UsersUserIdRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/shelf': {
+      id: '/shelf'
+      path: '/shelf'
+      fullPath: '/shelf'
+      preLoaderRoute: typeof ShelfRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/clubs': {
+      id: '/clubs'
+      path: '/clubs'
+      fullPath: '/clubs'
+      preLoaderRoute: typeof ClubsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -48,11 +201,80 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/users/$userId': {
+      id: '/users/$userId'
+      path: '/users/$userId'
+      fullPath: '/users/$userId'
+      preLoaderRoute: typeof UsersUserIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/profile/$userId': {
+      id: '/profile/$userId'
+      path: '/profile/$userId'
+      fullPath: '/profile/$userId'
+      preLoaderRoute: typeof ProfileUserIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/media/$mediaId': {
+      id: '/media/$mediaId'
+      path: '/media/$mediaId'
+      fullPath: '/media/$mediaId'
+      preLoaderRoute: typeof MediaMediaIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/join/$inviteCode': {
+      id: '/join/$inviteCode'
+      path: '/join/$inviteCode'
+      fullPath: '/join/$inviteCode'
+      preLoaderRoute: typeof JoinInviteCodeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/events/$eventId': {
+      id: '/events/$eventId'
+      path: '/events/$eventId'
+      fullPath: '/events/$eventId'
+      preLoaderRoute: typeof EventsEventIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/clubs/new': {
+      id: '/clubs/new'
+      path: '/new'
+      fullPath: '/clubs/new'
+      preLoaderRoute: typeof ClubsNewRouteImport
+      parentRoute: typeof ClubsRoute
+    }
+    '/clubs/$clubId': {
+      id: '/clubs/$clubId'
+      path: '/$clubId'
+      fullPath: '/clubs/$clubId'
+      preLoaderRoute: typeof ClubsClubIdRouteImport
+      parentRoute: typeof ClubsRoute
+    }
   }
 }
 
+interface ClubsRouteChildren {
+  ClubsClubIdRoute: typeof ClubsClubIdRoute
+  ClubsNewRoute: typeof ClubsNewRoute
+}
+
+const ClubsRouteChildren: ClubsRouteChildren = {
+  ClubsClubIdRoute: ClubsClubIdRoute,
+  ClubsNewRoute: ClubsNewRoute,
+}
+
+const ClubsRouteWithChildren = ClubsRoute._addFileChildren(ClubsRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ClubsRoute: ClubsRouteWithChildren,
+  LoginRoute: LoginRoute,
+  ShelfRoute: ShelfRoute,
+  EventsEventIdRoute: EventsEventIdRoute,
+  JoinInviteCodeRoute: JoinInviteCodeRoute,
+  MediaMediaIdRoute: MediaMediaIdRoute,
+  ProfileUserIdRoute: ProfileUserIdRoute,
+  UsersUserIdRoute: UsersUserIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

@@ -76,7 +76,7 @@ function SignedOutHome() {
           <Button
             size="lg"
             className="mt-4 px-8 text-base"
-            render={<Link to="/login" />}
+            render={<Link to="/login" search={{ redirect: undefined }} />}
           >
             Kom i gang — det er gratis
           </Button>
@@ -251,7 +251,7 @@ function SignedOutHome() {
           <Button
             size="lg"
             className="mt-4 px-8 text-base"
-            render={<Link to="/login" />}
+            render={<Link to="/login" search={{ redirect: undefined }} />}
           >
             Opprett din første klubb
           </Button>
@@ -277,29 +277,29 @@ function SignedInDashboard({ userId, name }: { userId: string; name: string }) {
   return (
     <div className="flex flex-col gap-10">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Welcome back, {name}</h1>
-        <p className="text-muted-foreground mt-1">Here's what's happening in your clubs.</p>
+        <h1 className="text-3xl font-bold tracking-tight">Velkommen tilbake, {name}</h1>
+        <p className="text-muted-foreground mt-1">Her er det siste fra klubbene dine.</p>
       </div>
 
       {currentlyReading.length > 0 && (
-        <CoverSection title="Currently Reading" items={currentlyReading} />
+        <CoverSection title="Leser nå" items={currentlyReading} />
       )}
       {wantToRead.length > 0 && (
-        <CoverSection title="Want to Read" items={wantToRead} />
+        <CoverSection title="Vil lese" items={wantToRead} />
       )}
 
       {shelfQuery.data && shelfQuery.data.length === 0 && (
         <div className="rounded-2xl border border-dashed border-border p-12 text-center">
-          <p className="text-muted-foreground mb-3">Your shelf is empty. Join a club to get started.</p>
-          <Button variant="outline" render={<Link to="/clubs" />}>Browse Clubs</Button>
+          <p className="text-muted-foreground mb-3">Hylla di er tom. Bli med i en klubb for å komme i gang.</p>
+          <Button variant="outline" render={<Link to="/clubs" />}>Se klubber</Button>
         </div>
       )}
 
       <section>
-        <h2 className="text-lg font-semibold mb-4">Activity</h2>
-        {feedQuery.isLoading && <p className="text-sm text-muted-foreground">Loading...</p>}
+        <h2 className="text-lg font-semibold mb-4">Aktivitet</h2>
+        {feedQuery.isLoading && <p className="text-sm text-muted-foreground">Laster...</p>}
         {feedQuery.data?.length === 0 && (
-          <p className="text-sm text-muted-foreground">No activity yet.</p>
+          <p className="text-sm text-muted-foreground">Ingen aktivitet ennå.</p>
         )}
         {feedQuery.data && feedQuery.data.length > 0 && (
           <div className="space-y-1">
@@ -312,7 +312,7 @@ function SignedInDashboard({ userId, name }: { userId: string; name: string }) {
                   <p className="text-sm">
                     <span className="font-medium">{event.user.name}</span>{" "}
                     <span className="text-muted-foreground">{formatEventType(event.type)}</span>
-                    {event.club && <span className="text-muted-foreground"> in <span className="font-medium text-foreground">{event.club.name}</span></span>}
+                    {event.club && <span className="text-muted-foreground"> i <span className="font-medium text-foreground">{event.club.name}</span></span>}
                   </p>
                   <span className="text-xs text-muted-foreground">{formatRelativeTime(event.createdAt)}</span>
                 </div>
@@ -330,7 +330,7 @@ function CoverSection({ title, items }: { title: string; items: ShelfItem[] }) {
     <section>
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-lg font-semibold">{title}</h2>
-        <Link to="/shelf" className="text-sm text-primary font-medium hover:underline underline-offset-4">View all</Link>
+        <Link to="/shelf" className="text-sm text-primary font-medium hover:underline underline-offset-4">Se alle</Link>
       </div>
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
         {items.slice(0, 5).map((item, i) => item.media && (
@@ -354,8 +354,8 @@ function CoverSection({ title, items }: { title: string; items: ShelfItem[] }) {
 
 function formatEventType(type: string): string {
   const map: Record<string, string> = {
-    shelf_update: "updated their shelf", progress_update: "updated their progress",
-    review_created: "wrote a review", club_created: "created a club", member_joined: "joined",
+    shelf_update: "oppdaterte hylla si", progress_update: "oppdaterte fremgangen sin",
+    review_created: "skrev en anmeldelse", club_created: "opprettet en klubb", member_joined: "ble med",
   };
   return map[type] ?? type.replace(/_/g, " ");
 }
@@ -363,13 +363,13 @@ function formatEventType(type: string): string {
 function formatRelativeTime(dateStr: string): string {
   const diffMs = Date.now() - new Date(dateStr).getTime();
   const min = Math.floor(diffMs / 60000);
-  if (min < 1) return "just now";
-  if (min < 60) return `${min}m ago`;
+  if (min < 1) return "akkurat nå";
+  if (min < 60) return `${min} min siden`;
   const hr = Math.floor(min / 60);
-  if (hr < 24) return `${hr}h ago`;
+  if (hr < 24) return `${hr} t siden`;
   const day = Math.floor(hr / 24);
-  if (day < 7) return `${day}d ago`;
-  return new Date(dateStr).toLocaleDateString();
+  if (day < 7) return `${day} d siden`;
+  return new Date(dateStr).toLocaleDateString("nb-NO");
 }
 
 interface FeedItem {

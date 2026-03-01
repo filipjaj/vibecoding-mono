@@ -7,6 +7,7 @@ import {
   events,
   rsvps,
   users,
+  clubs,
   clubMembers,
   clubSchedule,
   mediaItems,
@@ -99,11 +100,18 @@ eventsRouter.get("/events/:eventId", async (c) => {
   const db = createDb(c.env.DATABASE_URL);
   const eventId = c.req.param("eventId");
 
-  const [event] = await db
-    .select()
+  const [row] = await db
+    .select({
+      id: events.id, clubId: events.clubId, scheduleItemId: events.scheduleItemId,
+      title: events.title, description: events.description, location: events.location,
+      startsAt: events.startsAt, endsAt: events.endsAt,
+      clubName: clubs.name,
+    })
     .from(events)
+    .innerJoin(clubs, eq(events.clubId, clubs.id))
     .where(eq(events.id, eventId));
-  if (!event) return c.json({ error: "Not found" }, 404);
+  if (!row) return c.json({ error: "Not found" }, 404);
+  const event = row;
 
   let media = null;
   if (event.scheduleItemId) {
