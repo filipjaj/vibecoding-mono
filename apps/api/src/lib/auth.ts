@@ -10,6 +10,7 @@ type AuthEnv = {
   GOOGLE_CLIENT_ID: string;
   GOOGLE_CLIENT_SECRET: string;
   WEB_URL?: string;
+  COOKIE_DOMAIN?: string;
 };
 
 export function createAuth(env: AuthEnv) {
@@ -44,7 +45,7 @@ export function createAuth(env: AuthEnv) {
     advanced: {
       crossSubDomainCookies: {
         enabled: !env.BETTER_AUTH_URL.includes("localhost"),
-        domain: ".filipjohn.com",
+        domain: env.COOKIE_DOMAIN ?? ".filipjohn.com",
       },
     },
   });

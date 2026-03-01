@@ -4,6 +4,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@/components/ui/select";
 import { api } from "@/lib/api";
 
 export const Route = createFileRoute("/clubs/new")({ component: NewClubPage });
@@ -14,6 +21,7 @@ function NewClubPage() {
   const [description, setDescription] = useState("");
   const [mediaType, setMediaType] = useState<"book" | "film">("book");
   const [recurrenceRule, setRecurrenceRule] = useState("");
+  const [selectionMode, setSelectionMode] = useState<"admin_picks" | "rotation" | "vote">("admin_picks");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -29,6 +37,7 @@ function NewClubPage() {
           name,
           description: description || undefined,
           mediaType,
+          selectionMode,
           recurrenceRule: recurrenceRule || undefined,
         }),
       });
@@ -67,6 +76,19 @@ function NewClubPage() {
                 Filmer
               </button>
             </div>
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label>Velgemåte</Label>
+            <Select value={selectionMode} onValueChange={(v) => setSelectionMode(v as "admin_picks" | "rotation" | "vote")}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="admin_picks">Admin velger</SelectItem>
+                <SelectItem value="rotation">Rotasjon</SelectItem>
+                <SelectItem value="vote">Avstemning</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="recurrence">Gjentakelse (valgfritt)</Label>
