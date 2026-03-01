@@ -23,6 +23,8 @@ import {
   SelectItem,
 } from "@/components/ui/select";
 import { MediaSearch } from "@/components/media/media-search";
+import { PhaseBadge } from "@/components/club/phase-badge";
+import type { Phase } from "@/lib/phases";
 import { useSession } from "@/lib/auth-client";
 import { api } from "@/lib/api";
 
@@ -49,6 +51,32 @@ type DiscussionThread = {
 
 type ThreadDetail = DiscussionThread & {
   comments: Array<{ id: string; text: string; createdAt: string; user: { id: string; name: string; image: string | null } }>;
+};
+
+type CurrentRound = {
+  id: string;
+  clubId: string;
+  mediaItemId: string | null;
+  order: number;
+  eventId: string | null;
+  phase: Phase;
+  selectionMode: "admin_picks" | "rotation" | "vote";
+  event: {
+    id: string; title: string; description: string | null;
+    location: string | null; startsAt: string; endsAt: string | null;
+  } | null;
+  media: {
+    id: string; title: string; authorOrDirector: string | null;
+    coverUrl: string | null; year: number | null; pageCount: number | null;
+  } | null;
+  progress: Array<{
+    status: string; currentPage: number | null;
+    user: { id: string; name: string; image: string | null };
+  }>;
+  pacing: {
+    currentPage: number; totalPages: number; pagesRemaining: number;
+    daysRemaining: number; pagesPerDay: number; aheadBehindDays: number;
+  } | null;
 };
 
 export const Route = createFileRoute("/clubs/$clubId")({ component: ClubDetailPage });
@@ -99,6 +127,11 @@ function ClubDetailPage() {
   const { data: discussions = [] } = useQuery({
     queryKey: ["club-discussions", clubId],
     queryFn: () => api<DiscussionThread[]>(`/api/clubs/${clubId}/discussions`),
+  });
+
+  const { data: currentRound } = useQuery({
+    queryKey: ["club-round", clubId],
+    queryFn: () => api<CurrentRound>(`/api/clubs/${clubId}/rounds/current`),
   });
 
   const { data: threadDetail } = useQuery({
@@ -179,6 +212,10 @@ function ClubDetailPage() {
         }),
       });
       queryClient.invalidateQueries({ queryKey: ["club-events", clubId] });
+      // If there's an active round without an event, link it
+      if (currentRound?.phase === "active" && !currentRound.eventId) {
+        queryClient.invalidateQueries({ queryKey: ["club-round", clubId] });
+      }
       navigate({ to: "/events/$eventId", params: { eventId: event.id } });
     } catch (err) {
       setEventError(err instanceof Error ? err.message : "Kunne ikke opprette arrangement");
@@ -248,6 +285,135 @@ function ClubDetailPage() {
           <Button variant="outline" onClick={copyInviteLink}>{copied ? "Kopiert!" : "Kopier invitasjonslenke"}</Button>
         </div>
       </div>
+
+      {/* Current Round / Phase */}
+      {currentRound?.phase && currentRound.phase !== "completed" && (
+        <section className="rounded-2xl border border-border bg-card p-6 shadow-sm">
+          <div className="flex items-center gap-3 mb-4">
+            <PhaseBadge phase={currentRound.phase} />
+            <span className="text-sm text-muted-foreground">Runde {currentRound.order}</span>
+          </div>
+
+          {/* SELECTION phase */}
+          {currentRound.phase === "selection" && (
+            <div>
+              <h3 className="font-semibold mb-2">Velg neste {club.mediaType === "book" ? "bok" : "film"}</h3>
+              {isAdmin && currentRound.selectionMode === "admin_picks" && (
+                <div>
+                  <p className="text-sm text-muted-foreground mb-3">
+                    Søk og velg hva klubben skal {club.mediaType === "book" ? "lese" : "se"} neste gang.
+                  </p>
+                  <MediaSearch mediaType={club.mediaType} onSelect={async (result) => {
+                    const media = await api<{ id: string }>("/api/media", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ ...result, mediaType: club.mediaType }),
+                    });
+                    await api(`/api/clubs/${clubId}/rounds/current/select`, {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ mediaItemId: media.id }),
+                    });
+                    queryClient.invalidateQueries({ queryKey: ["club-round", clubId] });
+                  }} />
+                </div>
+              )}
+              {!isAdmin && (
+                <p className="text-sm text-muted-foreground">Venter på at admin velger...</p>
+              )}
+            </div>
+          )}
+
+          {/* ACTIVE phase */}
+          {currentRound.phase === "active" && currentRound.media && (
+            <div className="flex flex-col gap-4">
+              <div className="flex gap-4">
+                {currentRound.media.coverUrl && (
+                  <div className="w-20 aspect-[2/3] overflow-hidden rounded-lg bg-muted shrink-0">
+                    <img src={currentRound.media.coverUrl} alt={currentRound.media.title} className="h-full w-full object-cover" />
+                  </div>
+                )}
+                <div>
+                  <Link to="/media/$mediaId" params={{ mediaId: currentRound.media.id }}>
+                    <h3 className="font-semibold hover:underline">{currentRound.media.title}</h3>
+                  </Link>
+                  {currentRound.media.authorOrDirector && (
+                    <p className="text-sm text-muted-foreground">{currentRound.media.authorOrDirector}</p>
+                  )}
+                  {currentRound.event && (
+                    <p className="text-sm text-muted-foreground mt-2">
+                      Arrangement: {new Date(currentRound.event.startsAt).toLocaleDateString("nb-NO", { weekday: "long", day: "numeric", month: "long" })}
+                      {currentRound.event.location && ` · ${currentRound.event.location}`}
+                    </p>
+                  )}
+                </div>
+              </div>
+              {currentRound.pacing && (
+                <div className="rounded-xl bg-muted/50 p-4">
+                  <p className="text-sm font-medium">
+                    {currentRound.pacing.pagesPerDay} sider/dag for å rekke det
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Side {currentRound.pacing.currentPage} av {currentRound.pacing.totalPages}
+                    {currentRound.pacing.aheadBehindDays > 0 && ` · ${currentRound.pacing.aheadBehindDays} dager foran`}
+                    {currentRound.pacing.aheadBehindDays < 0 && ` · ${Math.abs(currentRound.pacing.aheadBehindDays)} dager bak`}
+                  </p>
+                </div>
+              )}
+              {!currentRound.event && isAdmin && (
+                <Button variant="outline" size="sm" onClick={() => setShowCreateEvent(true)}>
+                  Planlegg arrangement
+                </Button>
+              )}
+            </div>
+          )}
+
+          {/* EVENT phase */}
+          {currentRound.phase === "event" && currentRound.event && (
+            <div>
+              <h3 className="font-semibold mb-2">Arrangement i dag!</h3>
+              <p className="text-sm">
+                {new Date(currentRound.event.startsAt).toLocaleTimeString("nb-NO", { hour: "numeric", minute: "2-digit" })}
+                {currentRound.event.location && ` · ${currentRound.event.location}`}
+              </p>
+              <Link to="/events/$eventId" params={{ eventId: currentRound.event.id }}>
+                <Button variant="outline" size="sm" className="mt-3">Se arrangement</Button>
+              </Link>
+            </div>
+          )}
+
+          {/* REVIEW phase */}
+          {currentRound.phase === "review" && currentRound.media && (
+            <div className="flex flex-col gap-4">
+              <h3 className="font-semibold">Hva syntes du om {currentRound.media.title}?</h3>
+              <p className="text-sm text-muted-foreground">
+                Del din vurdering med klubben.
+              </p>
+              <Link to="/media/$mediaId" params={{ mediaId: currentRound.media.id }}>
+                <Button variant="outline" size="sm">Skriv anmeldelse</Button>
+              </Link>
+              {isAdmin && (
+                <Button variant="outline" size="sm" onClick={async () => {
+                  await api(`/api/clubs/${clubId}/rounds/current/advance`, { method: "POST" });
+                  queryClient.invalidateQueries({ queryKey: ["club-round", clubId] });
+                }}>
+                  Avslutt runde og start neste
+                </Button>
+              )}
+            </div>
+          )}
+        </section>
+      )}
+
+      {/* Start new round button (when no active round) */}
+      {isAdmin && (!currentRound?.phase || currentRound.phase === "completed") && (
+        <Button onClick={async () => {
+          await api(`/api/clubs/${clubId}/rounds`, { method: "POST" });
+          queryClient.invalidateQueries({ queryKey: ["club-round", clubId] });
+        }}>
+          Start ny runde
+        </Button>
+      )}
 
       {/* Schedule - cover grid */}
       <section>
