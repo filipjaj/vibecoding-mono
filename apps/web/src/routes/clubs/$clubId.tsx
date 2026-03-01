@@ -70,8 +70,9 @@ type CurrentRound = {
     coverUrl: string | null; year: number | null; pageCount: number | null;
   } | null;
   progress: Array<{
-    status: string; currentPage: number | null;
-    user: { id: string; name: string; image: string | null };
+    userId: string; currentPage: number | null;
+    status: string; updatedAt: string;
+    userName: string; userImage: string | null;
   }>;
   pacing: {
     currentPage: number; totalPages: number; pagesRemaining: number;
@@ -201,24 +202,45 @@ function ClubDetailPage() {
     setEventLoading(true);
     setEventError("");
     try {
-      const event = await api<{ id: string }>(`/api/clubs/${clubId}/events`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: eventTitle,
-          startsAt: new Date(eventStartsAt).toISOString(),
-          ...(eventDescription && { description: eventDescription }),
-          ...(eventLocation && { location: eventLocation }),
-          ...(eventEndsAt && { endsAt: new Date(eventEndsAt).toISOString() }),
-          ...(eventScheduleItemId && { scheduleItemId: eventScheduleItemId }),
-        }),
-      });
-      queryClient.invalidateQueries({ queryKey: ["club-events", clubId] });
-      // If there's an active round without an event, link it
-      if (currentRound?.phase === "active" && !currentRound.eventId) {
+      const hasActiveRound =
+        currentRound?.phase === "active" || currentRound?.phase === "selection";
+
+      const payload = {
+        title: eventTitle,
+        startsAt: new Date(eventStartsAt).toISOString(),
+        ...(eventDescription && { description: eventDescription }),
+        ...(eventLocation && { location: eventLocation }),
+        ...(eventEndsAt && { endsAt: new Date(eventEndsAt).toISOString() }),
+      };
+
+      let eventId: string;
+      if (hasActiveRound) {
+        // Create event AND link it to the current round
+        const result = await api<{ round: { id: string }; event: { id: string } }>(
+          `/api/clubs/${clubId}/rounds/current/event`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          },
+        );
+        eventId = result.event.id;
+        queryClient.invalidateQueries({ queryKey: ["club-events", clubId] });
         queryClient.invalidateQueries({ queryKey: ["club-round", clubId] });
+      } else {
+        // No active round — fall back to plain event creation
+        const result = await api<{ id: string }>(`/api/clubs/${clubId}/events`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            ...payload,
+            ...(eventScheduleItemId && { scheduleItemId: eventScheduleItemId }),
+          }),
+        });
+        eventId = result.id;
+        queryClient.invalidateQueries({ queryKey: ["club-events", clubId] });
       }
-      navigate({ to: "/events/$eventId", params: { eventId: event.id } });
+      navigate({ to: "/events/$eventId", params: { eventId } });
     } catch (err) {
       setEventError(err instanceof Error ? err.message : "Kunne ikke opprette arrangement");
     } finally {
@@ -239,26 +261,34 @@ function ClubDetailPage() {
   async function handleCreateDiscussion(e: React.FormEvent) {
     e.preventDefault();
     if (!newDiscussionTitle.trim()) return;
-    await api(`/api/clubs/${clubId}/discussions`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title: newDiscussionTitle }),
-    });
-    queryClient.invalidateQueries({ queryKey: ["club-discussions", clubId] });
-    setNewDiscussionTitle("");
-    setShowNewDiscussion(false);
+    try {
+      await api(`/api/clubs/${clubId}/discussions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: newDiscussionTitle }),
+      });
+      queryClient.invalidateQueries({ queryKey: ["club-discussions", clubId] });
+      setNewDiscussionTitle("");
+      setShowNewDiscussion(false);
+    } catch (err) {
+      setEventError(err instanceof Error ? err.message : "Kunne ikke opprette diskusjon");
+    }
   }
 
   async function handleAddComment(e: React.FormEvent) {
     e.preventDefault();
     if (!commentText.trim() || !expandedThread) return;
-    await api(`/api/discussions/${expandedThread}/comments`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text: commentText }),
-    });
-    queryClient.invalidateQueries({ queryKey: ["discussion", expandedThread] });
-    setCommentText("");
+    try {
+      await api(`/api/discussions/${expandedThread}/comments`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: commentText }),
+      });
+      queryClient.invalidateQueries({ queryKey: ["discussion", expandedThread] });
+      setCommentText("");
+    } catch (err) {
+      setEventError(err instanceof Error ? err.message : "Kunne ikke legge til kommentar");
+    }
   }
 
   return (
@@ -313,17 +343,21 @@ function ClubDetailPage() {
                     Søk og velg hva klubben skal {club.mediaType === "book" ? "lese" : "se"} neste gang.
                   </p>
                   <MediaSearch mediaType={club.mediaType} onSelect={async (result) => {
-                    const media = await api<{ id: string }>("/api/media", {
-                      method: "POST",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({ ...result, mediaType: club.mediaType }),
-                    });
-                    await api(`/api/clubs/${clubId}/rounds/current/select`, {
-                      method: "POST",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({ mediaItemId: media.id }),
-                    });
-                    queryClient.invalidateQueries({ queryKey: ["club-round", clubId] });
+                    try {
+                      const media = await api<{ id: string }>("/api/media", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ ...result, mediaType: club.mediaType }),
+                      });
+                      await api(`/api/clubs/${clubId}/rounds/current/select`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ mediaItemId: media.id }),
+                      });
+                      queryClient.invalidateQueries({ queryKey: ["club-round", clubId] });
+                    } catch (err) {
+                      setEventError(err instanceof Error ? err.message : "Kunne ikke velge media");
+                    }
                   }} />
                 </div>
               )}
@@ -403,8 +437,12 @@ function ClubDetailPage() {
               </Link>
               {isAdmin && (
                 <Button variant="outline" size="sm" onClick={async () => {
-                  await api(`/api/clubs/${clubId}/rounds/current/advance`, { method: "POST" });
-                  queryClient.invalidateQueries({ queryKey: ["club-round", clubId] });
+                  try {
+                    await api(`/api/clubs/${clubId}/rounds/current/advance`, { method: "POST" });
+                    queryClient.invalidateQueries({ queryKey: ["club-round", clubId] });
+                  } catch (err) {
+                    setEventError(err instanceof Error ? err.message : "Kunne ikke avslutte runden");
+                  }
                 }}>
                   Avslutt runde og start neste
                 </Button>
@@ -417,8 +455,12 @@ function ClubDetailPage() {
       {/* Start new round button (when no active round) */}
       {isAdmin && (!currentRound?.phase || currentRound.phase === "completed") && (
         <Button onClick={async () => {
-          await api(`/api/clubs/${clubId}/rounds`, { method: "POST" });
-          queryClient.invalidateQueries({ queryKey: ["club-round", clubId] });
+          try {
+            await api(`/api/clubs/${clubId}/rounds`, { method: "POST" });
+            queryClient.invalidateQueries({ queryKey: ["club-round", clubId] });
+          } catch (err) {
+            setEventError(err instanceof Error ? err.message : "Kunne ikke starte ny runde");
+          }
         }}>
           Start ny runde
         </Button>

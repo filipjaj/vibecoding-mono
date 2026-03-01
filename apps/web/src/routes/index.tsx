@@ -292,6 +292,7 @@ function phaseCTA(round?: CurrentRound): string {
       if (round.event) return `I dag kl ${new Date(round.event.startsAt).toLocaleTimeString("nb-NO", { hour: "numeric", minute: "2-digit" })}`;
       return "Arrangement i dag";
     case "review": return "Skriv din vurdering";
+    case "completed": return "Fullført";
     default: return "";
   }
 }

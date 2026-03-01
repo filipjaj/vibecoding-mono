@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -42,13 +42,16 @@ function ClubSettingsPage() {
   const [description, setDescription] = useState("");
   const [selectionMode, setSelectionMode] = useState("");
   const [saving, setSaving] = useState(false);
+  const [initialized, setInitialized] = useState(false);
 
-  // Initialize form when club loads
-  if (club && !name) {
-    setName(club.name);
-    setDescription(club.description ?? "");
-    setSelectionMode(club.selectionMode);
-  }
+  useEffect(() => {
+    if (club && !initialized) {
+      setName(club.name);
+      setDescription(club.description ?? "");
+      setSelectionMode(club.selectionMode);
+      setInitialized(true);
+    }
+  }, [club, initialized]);
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
