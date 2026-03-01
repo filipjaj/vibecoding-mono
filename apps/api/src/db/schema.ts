@@ -37,6 +37,17 @@ export const progressStatusEnum = pgEnum("progress_status", [
   "finished",
 ]);
 
+export const selectionModeEnum = pgEnum("selection_mode", [
+  "admin_picks",
+  "rotation",
+  "vote",
+]);
+
+export const reviewVisibilityEnum = pgEnum("review_visibility", [
+  "club_only",
+  "public",
+]);
+
 // ─── Better Auth tables ─────────────────────────────────
 
 export const users = pgTable("user", {
@@ -102,6 +113,9 @@ export const clubs = pgTable("clubs", {
     .notNull()
     .references(() => users.id),
   recurrenceRule: text("recurrence_rule"),
+  selectionMode: selectionModeEnum("selection_mode").notNull().default("admin_picks"),
+  currentRoundId: uuid("current_round_id"),
+  pacingEnabled: boolean("pacing_enabled").notNull().default(true),
   createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
 });
 
@@ -131,6 +145,8 @@ export const mediaItems = pgTable(
     coverUrl: text("cover_url"),
     year: integer("year"),
     description: text("description"),
+    pageCount: integer("page_count"),
+    runtimeMinutes: integer("runtime_minutes"),
   },
   (t) => [uniqueIndex("media_items_external").on(t.externalId, t.mediaType)]
 );
@@ -161,6 +177,63 @@ export const events = pgTable("events", {
   endsAt: timestamp("ends_at", { mode: "date" }),
 });
 
+export const rounds = pgTable("rounds", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  clubId: uuid("club_id")
+    .notNull()
+    .references(() => clubs.id, { onDelete: "cascade" }),
+  mediaItemId: uuid("media_item_id").references(() => mediaItems.id),
+  order: integer("order").notNull().default(0),
+  selectedBy: text("selected_by").references(() => users.id),
+  eventId: uuid("event_id").references(() => events.id),
+  startedAt: timestamp("started_at", { mode: "date" }).defaultNow().notNull(),
+  completedAt: timestamp("completed_at", { mode: "date" }),
+});
+
+export const nominations = pgTable("nominations", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  roundId: uuid("round_id")
+    .notNull()
+    .references(() => rounds.id, { onDelete: "cascade" }),
+  nominatedBy: text("nominated_by")
+    .notNull()
+    .references(() => users.id),
+  mediaItemId: uuid("media_item_id")
+    .notNull()
+    .references(() => mediaItems.id),
+  pitch: text("pitch"),
+  createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
+});
+
+export const nominationVotes = pgTable(
+  "nomination_votes",
+  {
+    nominationId: uuid("nomination_id")
+      .notNull()
+      .references(() => nominations.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id),
+    createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
+  },
+  (t) => [uniqueIndex("nomination_votes_unique").on(t.nominationId, t.userId)]
+);
+
+export const rotationOrder = pgTable(
+  "rotation_order",
+  {
+    clubId: uuid("club_id")
+      .notNull()
+      .references(() => clubs.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id),
+    position: integer("position").notNull(),
+    lastPickedRoundId: uuid("last_picked_round_id").references(() => rounds.id),
+  },
+  (t) => [uniqueIndex("rotation_order_unique").on(t.clubId, t.userId)]
+);
+
 export const rsvps = pgTable(
   "rsvps",
   {
@@ -184,6 +257,8 @@ export const reviews = pgTable("reviews", {
     .notNull()
     .references(() => mediaItems.id),
   clubId: uuid("club_id").references(() => clubs.id),
+  roundId: uuid("round_id").references(() => rounds.id),
+  visibility: reviewVisibilityEnum("visibility").notNull().default("club_only"),
   rating: integer("rating").notNull(),
   text: text("text"),
   createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
@@ -253,6 +328,8 @@ export const clubMemberProgress = pgTable(
     mediaItemId: uuid("media_item_id")
       .notNull()
       .references(() => mediaItems.id),
+    roundId: uuid("round_id").references(() => rounds.id),
+    currentPage: integer("current_page"),
     status: progressStatusEnum("status").notNull().default("not_started"),
     updatedAt: timestamp("updated_at", { mode: "date" }).defaultNow().notNull(),
   },
