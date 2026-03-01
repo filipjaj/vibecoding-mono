@@ -11,6 +11,7 @@ import { usersRouter } from "./routes/users";
 import { feedRouter } from "./routes/feed";
 import { roundsRouter } from "./routes/rounds";
 import { selectionRouter } from "./routes/selection";
+import { progressRouter } from "./routes/progress";
 
 type Bindings = {
   DATABASE_URL: string;
@@ -65,5 +66,6 @@ app.route("/api", usersRouter);
 app.route("/api", feedRouter);
 app.route("/api", roundsRouter);
 app.route("/api", selectionRouter);
+app.route("/api", progressRouter);
 
 export default app;

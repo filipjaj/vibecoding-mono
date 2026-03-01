@@ -41,6 +41,7 @@ const createClubSchema = z.object({
   description: z.string().optional(),
   mediaType: z.enum(["book", "film"]),
   recurrenceRule: z.string().optional(),
+  selectionMode: z.enum(["admin_picks", "rotation", "vote"]).optional(),
 });
 
 clubsRouter.post("/", zValidator("json", createClubSchema), async (c) => {
@@ -56,6 +57,7 @@ clubsRouter.post("/", zValidator("json", createClubSchema), async (c) => {
     inviteCode,
     createdBy: user.id,
     recurrenceRule: body.recurrenceRule,
+    selectionMode: body.selectionMode,
   }).returning();
 
   await db.insert(clubMembers).values({
@@ -118,6 +120,30 @@ clubsRouter.post("/join/:code", async (c) => {
 
   await db.insert(clubMembers).values({ clubId: club.id, userId: user.id, role: "member" });
   return c.json({ club, alreadyMember: false }, 201);
+});
+
+// PATCH /:id — Update club settings (admin only)
+const updateClubSchema = z.object({
+  name: z.string().min(1).max(255).optional(),
+  description: z.string().optional(),
+  selectionMode: z.enum(["admin_picks", "rotation", "vote"]).optional(),
+  pacingEnabled: z.boolean().optional(),
+  recurrenceRule: z.string().optional(),
+});
+
+clubsRouter.patch("/:id", zValidator("json", updateClubSchema), async (c) => {
+  const db = createDb(c.env.DATABASE_URL);
+  const clubId = c.req.param("id");
+  const user = c.get("user");
+  const body = c.req.valid("json");
+
+  const [membership] = await db.select().from(clubMembers).where(
+    and(eq(clubMembers.clubId, clubId), eq(clubMembers.userId, user.id), eq(clubMembers.role, "admin"))
+  );
+  if (!membership) return c.json({ error: "Forbidden" }, 403);
+
+  const [updated] = await db.update(clubs).set(body).where(eq(clubs.id, clubId)).returning();
+  return c.json(updated);
 });
 
 // Public preview endpoint (no auth)

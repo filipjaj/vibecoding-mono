@@ -62,8 +62,15 @@ const updateScheduleSchema = z.object({ status: z.enum(["upcoming", "current", "
 
 scheduleRouter.patch("/:clubId/schedule/:itemId", zValidator("json", updateScheduleSchema), async (c) => {
   const db = createDb(c.env.DATABASE_URL);
+  const clubId = c.req.param("clubId");
   const itemId = c.req.param("itemId");
+  const user = c.get("user");
   const body = c.req.valid("json");
+
+  const [membership] = await db.select().from(clubMembers).where(
+    and(eq(clubMembers.clubId, clubId), eq(clubMembers.userId, user.id), eq(clubMembers.role, "admin"))
+  );
+  if (!membership) return c.json({ error: "Forbidden" }, 403);
 
   const [updated] = await db.update(clubSchedule).set({ status: body.status }).where(eq(clubSchedule.id, itemId)).returning();
   if (!updated) return c.json({ error: "Not found" }, 404);
