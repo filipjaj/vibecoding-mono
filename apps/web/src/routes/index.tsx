@@ -1,9 +1,11 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useSession } from "@/lib/auth-client";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueries } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { useScrollReveal } from "@/hooks/use-scroll-reveal";
+import { PhaseBadge } from "@/components/club/phase-badge";
+import type { Phase } from "@/lib/phases";
 
 const COVERS = [
   { title: "Naiv. Super.", coverUrl: "https://covers.openlibrary.org/b/isbn/9788202166984-M.jpg", rotation: -5, top: "8%", left: "5%", size: "w-20 h-28 sm:w-24 sm:h-34", duration: 14, mobileHidden: false },
@@ -261,6 +263,39 @@ function SignedOutHome() {
   );
 }
 
+type CurrentRound = {
+  id: string;
+  phase: Phase;
+  media?: { id: string; title: string; coverUrl?: string | null };
+  event?: { id: string; startsAt: string };
+  pacing?: { currentPage: number; totalPages: number; pagesPerDay: number };
+};
+
+type ClubWithRound = {
+  club: { id: string; name: string; description: string | null; mediaType: string; coverImageUrl: string | null };
+  role: string;
+  currentRound?: CurrentRound;
+};
+
+function phaseCTA(round?: CurrentRound): string {
+  if (!round?.phase) return "Ingen aktiv runde";
+  switch (round.phase) {
+    case "selection": return "Velg neste";
+    case "active":
+      if (round.pacing) return `Side ${round.pacing.currentPage}/${round.pacing.totalPages} — ${round.pacing.pagesPerDay}s/dag`;
+      if (round.event) {
+        const d = Math.ceil((new Date(round.event.startsAt).getTime() - Date.now()) / (1000*60*60*24));
+        return d > 0 ? `Arrangement om ${d} dager` : "Arrangement snart";
+      }
+      return round.media?.title ?? "Pågår";
+    case "event":
+      if (round.event) return `I dag kl ${new Date(round.event.startsAt).toLocaleTimeString("nb-NO", { hour: "numeric", minute: "2-digit" })}`;
+      return "Arrangement i dag";
+    case "review": return "Skriv din vurdering";
+    default: return "";
+  }
+}
+
 function SignedInDashboard({ userId, name }: { userId: string; name: string }) {
   const feedQuery = useQuery({
     queryKey: ["feed"],
@@ -270,6 +305,24 @@ function SignedInDashboard({ userId, name }: { userId: string; name: string }) {
     queryKey: ["shelf", userId],
     queryFn: () => api<ShelfItem[]>(`/api/users/${userId}/shelf`),
   });
+  const clubsQuery = useQuery({
+    queryKey: ["clubs"],
+    queryFn: () => api<{ club: ClubWithRound["club"]; role: string }[]>("/api/clubs"),
+  });
+
+  const clubIds = clubsQuery.data?.map((c) => c.club.id) ?? [];
+  const roundQueries = useQueries({
+    queries: clubIds.map((clubId) => ({
+      queryKey: ["club-round", clubId],
+      queryFn: () => api<CurrentRound>(`/api/clubs/${clubId}/rounds/current`).catch(() => undefined),
+      enabled: clubIds.length > 0,
+    })),
+  });
+
+  const clubs: ClubWithRound[] = (clubsQuery.data ?? []).map((c, i) => ({
+    ...c,
+    currentRound: roundQueries[i]?.data ?? undefined,
+  }));
 
   const currentlyReading = shelfQuery.data?.filter((i) => i.status === "reading") ?? [];
   const wantToRead = shelfQuery.data?.filter((i) => i.status === "want") ?? [];
@@ -281,6 +334,32 @@ function SignedInDashboard({ userId, name }: { userId: string; name: string }) {
         <p className="text-muted-foreground mt-1">Her er det siste fra klubbene dine.</p>
       </div>
 
+      {clubs.length > 0 && (
+        <section>
+          <h2 className="text-lg font-semibold mb-4">Klubbene dine</h2>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {clubs.map(({ club, currentRound }) => (
+              <Link key={club.id} to="/clubs/$clubId" params={{ clubId: club.id }}>
+                <div className="rounded-2xl border border-border bg-card p-5 shadow-sm transition-all hover:shadow-md hover:border-primary/20">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-sm font-bold text-primary">
+                      {club.mediaType === "book" ? "B" : "F"}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-semibold truncate">{club.name}</p>
+                      {currentRound?.phase && <PhaseBadge phase={currentRound.phase} />}
+                    </div>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    {phaseCTA(currentRound)}
+                  </p>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
+
       {currentlyReading.length > 0 && (
         <CoverSection title="Leser nå" items={currentlyReading} />
       )}
@@ -288,7 +367,7 @@ function SignedInDashboard({ userId, name }: { userId: string; name: string }) {
         <CoverSection title="Vil lese" items={wantToRead} />
       )}
 
-      {shelfQuery.data && shelfQuery.data.length === 0 && (
+      {shelfQuery.data && shelfQuery.data.length === 0 && clubs.length === 0 && (
         <div className="rounded-2xl border border-dashed border-border p-12 text-center">
           <p className="text-muted-foreground mb-3">Hylla di er tom. Bli med i en klubb for å komme i gang.</p>
           <Button variant="outline" render={<Link to="/clubs" />}>Se klubber</Button>
