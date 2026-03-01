@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/select";
 import { MediaSearch } from "@/components/media/media-search";
 import { PhaseBadge } from "@/components/club/phase-badge";
-import type { Phase } from "@/lib/phases";
+import { type Phase, phaseConfig } from "@/lib/phases";
 import { useOptimisticMutation } from "@/lib/mutations";
 import { useSession } from "@/lib/auth-client";
 import { api } from "@/lib/api";
@@ -61,6 +61,7 @@ type CurrentRound = {
   order: number;
   eventId: string | null;
   phase: Phase;
+  phaseOverride: Phase | null;
   selectionMode: "admin_picks" | "rotation" | "vote";
   event: {
     id: string; title: string; description: string | null;
@@ -315,6 +316,18 @@ function ClubDetailPage() {
     },
   });
 
+  const phaseOverrideMutation = useMutation({
+    mutationFn: (phase: Phase | null) =>
+      api(`/api/clubs/${clubId}/rounds/current/phase`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phase }),
+      }),
+    onSuccess() {
+      queryClient.invalidateQueries({ queryKey: ["club-round", clubId] });
+    },
+  });
+
   const now = new Date();
   const upcomingEvents = clubEvents.filter((e) => new Date(e.startsAt) >= now);
   const pastEvents = clubEvents.filter((e) => new Date(e.startsAt) < now);
@@ -407,6 +420,30 @@ function ClubDetailPage() {
           <div className="flex items-center gap-3 mb-4">
             <PhaseBadge phase={currentRound.phase} />
             <span className="text-sm text-muted-foreground">Runde {currentRound.order}</span>
+            {isAdmin && (
+              <Select
+                value={currentRound.phaseOverride ?? "auto"}
+                onValueChange={(v) =>
+                  phaseOverrideMutation.mutate(v === "auto" ? null : (v as Phase))
+                }
+              >
+                <SelectTrigger className="w-auto h-7 text-xs gap-1 px-2">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="auto">
+                    Automatisk fase
+                  </SelectItem>
+                  {(["selection", "active", "event", "review", "completed"] as const).map(
+                    (p) => (
+                      <SelectItem key={p} value={p}>
+                        {phaseConfig[p].label}
+                      </SelectItem>
+                    ),
+                  )}
+                </SelectContent>
+              </Select>
+            )}
           </div>
 
           {/* SELECTION phase */}

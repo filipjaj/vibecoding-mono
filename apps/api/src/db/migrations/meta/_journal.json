@@ -8,6 +8,13 @@
       "when": 1772369782193,
       "tag": "0000_optimal_inertia",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1772389530857,
+      "tag": "0001_wooden_kingpin",
+      "breakpoints": true
     }
   ]
 }

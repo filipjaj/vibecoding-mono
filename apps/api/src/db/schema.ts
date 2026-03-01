@@ -37,6 +37,14 @@ export const progressStatusEnum = pgEnum("progress_status", [
   "finished",
 ]);
 
+export const phaseEnum = pgEnum("phase", [
+  "selection",
+  "active",
+  "event",
+  "review",
+  "completed",
+]);
+
 export const selectionModeEnum = pgEnum("selection_mode", [
   "admin_picks",
   "rotation",
@@ -186,6 +194,7 @@ export const rounds = pgTable("rounds", {
   order: integer("order").notNull().default(0),
   selectedBy: text("selected_by").references(() => users.id),
   eventId: uuid("event_id").references(() => events.id),
+  phaseOverride: phaseEnum("phase_override"),
   startedAt: timestamp("started_at", { mode: "date" }).defaultNow().notNull(),
   completedAt: timestamp("completed_at", { mode: "date" }),
 });

@@ -3,6 +3,7 @@ export type Phase = "selection" | "active" | "event" | "review" | "completed";
 type RoundForPhase = {
   mediaItemId: string | null;
   completedAt: Date | null;
+  phaseOverride: Phase | null;
 };
 
 type EventForPhase = {
@@ -11,6 +12,7 @@ type EventForPhase = {
 } | null;
 
 export function derivePhase(round: RoundForPhase, event: EventForPhase): Phase {
+  if (round.phaseOverride) return round.phaseOverride;
   if (round.completedAt) return "completed";
   if (!round.mediaItemId) return "selection";
   if (!event) return "active";
@@ -22,8 +24,8 @@ export function derivePhase(round: RoundForPhase, event: EventForPhase): Phase {
 
 export const phaseLabels: Record<Phase, string> = {
   selection: "Velg neste",
-  active: "P\u00e5g\u00e5r",
+  active: "Pågår",
   event: "Arrangement",
   review: "Vurdering",
-  completed: "Fullf\u00f8rt",
+  completed: "Fullført",
 };

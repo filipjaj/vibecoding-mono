@@ -325,6 +325,51 @@ roundsRouter.post(
   },
 );
 
+// POST /clubs/:clubId/rounds/current/phase — Override phase (admin only)
+const phaseOverrideSchema = z.object({
+  phase: z
+    .enum(["selection", "active", "event", "review", "completed"])
+    .nullable(),
+});
+
+roundsRouter.post(
+  "/clubs/:clubId/rounds/current/phase",
+  zValidator("json", phaseOverrideSchema),
+  async (c) => {
+    const db = createDb(c.env.DATABASE_URL);
+    const clubId = c.req.param("clubId");
+    const user = c.get("user");
+    const body = c.req.valid("json");
+
+    if (!(await isClubAdmin(db, clubId, user.id))) {
+      return c.json({ error: "Forbidden" }, 403);
+    }
+
+    const [club] = await db.select().from(clubs).where(eq(clubs.id, clubId));
+    if (!club || !club.currentRoundId)
+      return c.json({ error: "No current round" }, 404);
+
+    const [updated] = await db
+      .update(rounds)
+      .set({ phaseOverride: body.phase })
+      .where(eq(rounds.id, club.currentRoundId))
+      .returning();
+
+    // Derive the effective phase for the response
+    let event = null;
+    if (updated.eventId) {
+      const [e] = await db
+        .select()
+        .from(events)
+        .where(eq(events.id, updated.eventId));
+      event = e ?? null;
+    }
+    const phase = derivePhase(updated, event);
+
+    return c.json({ ...updated, phase });
+  },
+);
+
 // POST /clubs/:clubId/rounds/current/advance — Complete current round
 roundsRouter.post("/clubs/:clubId/rounds/current/advance", async (c) => {
   const db = createDb(c.env.DATABASE_URL);
