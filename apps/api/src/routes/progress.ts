@@ -3,7 +3,7 @@ import { z } from "zod";
 import { zValidator } from "@hono/zod-validator";
 import { eq, and } from "drizzle-orm";
 import { createDb } from "../db";
-import { clubs, rounds, clubMemberProgress, users, mediaItems, events } from "../db/schema";
+import { clubs, rounds, clubMemberProgress, clubMembers, users, mediaItems, events } from "../db/schema";
 import { authMiddleware } from "../lib/auth-middleware";
 import { calculatePacing } from "../lib/pacing";
 
@@ -20,6 +20,13 @@ type Env = {
   };
 };
 
+async function isClubMember(db: ReturnType<typeof createDb>, clubId: string, userId: string) {
+  const [m] = await db.select().from(clubMembers).where(
+    and(eq(clubMembers.clubId, clubId), eq(clubMembers.userId, userId))
+  );
+  return !!m;
+}
+
 const progressRouter = new Hono<Env>();
 progressRouter.use("/*", authMiddleware);
 
@@ -27,6 +34,11 @@ progressRouter.use("/*", authMiddleware);
 progressRouter.get("/clubs/:clubId/rounds/current/progress", async (c) => {
   const db = createDb(c.env.DATABASE_URL);
   const clubId = c.req.param("clubId");
+  const user = c.get("user");
+
+  if (!(await isClubMember(db, clubId, user.id))) {
+    return c.json({ error: "Forbidden" }, 403);
+  }
 
   const [club] = await db.select().from(clubs).where(eq(clubs.id, clubId));
   if (!club?.currentRoundId) return c.json([]);
@@ -67,6 +79,10 @@ progressRouter.post(
     const clubId = c.req.param("clubId");
     const user = c.get("user");
     const body = c.req.valid("json");
+
+    if (!(await isClubMember(db, clubId, user.id))) {
+      return c.json({ error: "Forbidden" }, 403);
+    }
 
     const [club] = await db.select().from(clubs).where(eq(clubs.id, clubId));
     if (!club?.currentRoundId) return c.json({ error: "No active round" }, 400);

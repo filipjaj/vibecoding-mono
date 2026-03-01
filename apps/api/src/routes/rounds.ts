@@ -29,6 +29,23 @@ type Env = {
   };
 };
 
+async function isClubMember(
+  db: ReturnType<typeof createDb>,
+  clubId: string,
+  userId: string,
+) {
+  const [m] = await db
+    .select()
+    .from(clubMembers)
+    .where(
+      and(
+        eq(clubMembers.clubId, clubId),
+        eq(clubMembers.userId, userId),
+      ),
+    );
+  return !!m;
+}
+
 async function isClubAdmin(
   db: ReturnType<typeof createDb>,
   clubId: string,
@@ -54,6 +71,11 @@ roundsRouter.use("/*", authMiddleware);
 roundsRouter.get("/clubs/:clubId/rounds", async (c) => {
   const db = createDb(c.env.DATABASE_URL);
   const clubId = c.req.param("clubId");
+  const user = c.get("user");
+
+  if (!(await isClubMember(db, clubId, user.id))) {
+    return c.json({ error: "Forbidden" }, 403);
+  }
 
   const clubRounds = await db
     .select()
@@ -84,6 +106,10 @@ roundsRouter.get("/clubs/:clubId/rounds/current", async (c) => {
   const db = createDb(c.env.DATABASE_URL);
   const clubId = c.req.param("clubId");
   const user = c.get("user");
+
+  if (!(await isClubMember(db, clubId, user.id))) {
+    return c.json({ error: "Forbidden" }, 403);
+  }
 
   const [club] = await db.select().from(clubs).where(eq(clubs.id, clubId));
   if (!club) return c.json({ error: "Club not found" }, 404);
