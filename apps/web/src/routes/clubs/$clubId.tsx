@@ -91,6 +91,7 @@ function ClubDetailPage() {
   // Add to Schedule dialog state
   const [showAddSchedule, setShowAddSchedule] = useState(false);
   const [addingToSchedule, setAddingToSchedule] = useState(false);
+  const [scheduleError, setScheduleError] = useState("");
 
   // Discussion state
   const [expandedThread, setExpandedThread] = useState<string | null>(null);
@@ -165,6 +166,7 @@ function ClubDetailPage() {
     description: string | null;
   }) {
     setAddingToSchedule(true);
+    setScheduleError("");
     try {
       const media = await api<{ id: string }>("/api/media", {
         method: "POST",
@@ -188,7 +190,7 @@ function ClubDetailPage() {
       setShowAddSchedule(false);
     } catch (err) {
       console.error("Failed to add to schedule:", err);
-      alert("Kunne ikke legge til i programmet. Prøv igjen.");
+      setScheduleError("Kunne ikke legge til i programmet. Prøv igjen.");
     } finally {
       setAddingToSchedule(false);
     }
@@ -637,6 +639,9 @@ function ClubDetailPage() {
               <MediaSearch mediaType={club.mediaType} onSelect={handleAddToSchedule} />
             )}
           </div>
+          {scheduleError && (
+            <p className="text-sm text-destructive">{scheduleError}</p>
+          )}
           <AlertDialogFooter>
             <AlertDialogCancel>Avbryt</AlertDialogCancel>
           </AlertDialogFooter>
