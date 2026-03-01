@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -25,6 +25,7 @@ import {
 import { MediaSearch } from "@/components/media/media-search";
 import { PhaseBadge } from "@/components/club/phase-badge";
 import type { Phase } from "@/lib/phases";
+import { useOptimisticMutation } from "@/lib/mutations";
 import { useSession } from "@/lib/auth-client";
 import { api } from "@/lib/api";
 
@@ -91,8 +92,6 @@ function ClubDetailPage() {
 
   // Add to Schedule dialog state
   const [showAddSchedule, setShowAddSchedule] = useState(false);
-  const [addingToSchedule, setAddingToSchedule] = useState(false);
-  const [scheduleError, setScheduleError] = useState("");
 
   // Discussion state
   const [expandedThread, setExpandedThread] = useState<string | null>(null);
@@ -108,8 +107,6 @@ function ClubDetailPage() {
   const [eventStartsAt, setEventStartsAt] = useState("");
   const [eventEndsAt, setEventEndsAt] = useState("");
   const [eventScheduleItemId, setEventScheduleItemId] = useState("");
-  const [eventLoading, setEventLoading] = useState(false);
-  const [eventError, setEventError] = useState("");
 
   const { data: club, isLoading: clubLoading } = useQuery({
     queryKey: ["club", clubId],
@@ -142,6 +139,182 @@ function ClubDetailPage() {
     enabled: !!expandedThread,
   });
 
+  // --- Tier 2: Optimistic mutations ---
+
+  const commentMutation = useOptimisticMutation<void, { text: string }>({
+    queryKey: ["discussion", expandedThread],
+    mutationFn: (payload) =>
+      api(`/api/discussions/${expandedThread}/comments`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      }),
+    onMutate(payload, qc) {
+      if (!session?.user || !expandedThread) return;
+      qc.setQueryData<ThreadDetail>(["discussion", expandedThread], (old) => {
+        if (!old) return old;
+        return {
+          ...old,
+          comments: [
+            ...old.comments,
+            {
+              id: `temp-${Date.now()}`,
+              text: payload.text,
+              createdAt: new Date().toISOString(),
+              user: { id: session.user.id, name: session.user.name, image: session.user.image ?? null },
+            },
+          ],
+        };
+      });
+    },
+    onSuccess() {
+      setCommentText("");
+    },
+  });
+
+  const discussionMutation = useOptimisticMutation<void, { title: string }>({
+    queryKey: ["club-discussions", clubId],
+    mutationFn: (payload) =>
+      api(`/api/clubs/${clubId}/discussions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      }),
+    onMutate(payload, qc) {
+      if (!session?.user) return;
+      qc.setQueryData<DiscussionThread[]>(["club-discussions", clubId], (old) => {
+        if (!old) return old;
+        return [
+          {
+            id: `temp-${Date.now()}`,
+            title: payload.title,
+            createdAt: new Date().toISOString(),
+            createdBy: { id: session.user.id, name: session.user.name, image: session.user.image ?? null },
+          },
+          ...old,
+        ];
+      });
+    },
+    onSuccess() {
+      setNewDiscussionTitle("");
+      setShowNewDiscussion(false);
+    },
+  });
+
+  // --- Tier 3: useMutation wrappers (no optimistic) ---
+
+  const addToScheduleMutation = useMutation({
+    mutationFn: async (searchResult: {
+      externalId: string; title: string; authorOrDirector: string | null;
+      coverUrl: string | null; year: number | null; description: string | null;
+    }) => {
+      const media = await api<{ id: string }>("/api/media", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...searchResult, mediaType: club!.mediaType }),
+      });
+      await api(`/api/clubs/${clubId}/schedule`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mediaItemId: media.id }),
+      });
+    },
+    onSuccess() {
+      queryClient.invalidateQueries({ queryKey: ["club-schedule", clubId] });
+      setShowAddSchedule(false);
+    },
+  });
+
+  const createEventMutation = useMutation({
+    mutationFn: async (payload: {
+      title: string; startsAt: string;
+      description?: string; location?: string; endsAt?: string;
+      scheduleItemId?: string;
+    }) => {
+      const hasActiveRound =
+        currentRound?.phase === "active" || currentRound?.phase === "selection";
+
+      const body = {
+        title: payload.title,
+        startsAt: new Date(payload.startsAt).toISOString(),
+        ...(payload.description && { description: payload.description }),
+        ...(payload.location && { location: payload.location }),
+        ...(payload.endsAt && { endsAt: new Date(payload.endsAt).toISOString() }),
+      };
+
+      if (hasActiveRound) {
+        const result = await api<{ round: { id: string }; event: { id: string } }>(
+          `/api/clubs/${clubId}/rounds/current/event`,
+          { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) },
+        );
+        return result.event.id;
+      } else {
+        const result = await api<{ id: string }>(`/api/clubs/${clubId}/events`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            ...body,
+            ...(payload.scheduleItemId && { scheduleItemId: payload.scheduleItemId }),
+          }),
+        });
+        return result.id;
+      }
+    },
+    onSuccess(eventId) {
+      queryClient.invalidateQueries({ queryKey: ["club-events", clubId] });
+      queryClient.invalidateQueries({ queryKey: ["club-round", clubId] });
+      navigate({ to: "/events/$eventId", params: { eventId } });
+    },
+  });
+
+  const selectMediaMutation = useMutation({
+    mutationFn: async (mediaItemId: string) => {
+      await api(`/api/clubs/${clubId}/rounds/current/select`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mediaItemId }),
+      });
+    },
+    onSuccess() {
+      queryClient.invalidateQueries({ queryKey: ["club-round", clubId] });
+    },
+  });
+
+  const selectFromSearchMutation = useMutation({
+    mutationFn: async (result: {
+      externalId: string; title: string; authorOrDirector: string | null;
+      coverUrl: string | null; year: number | null; description: string | null;
+    }) => {
+      const media = await api<{ id: string }>("/api/media", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...result, mediaType: club!.mediaType }),
+      });
+      await api(`/api/clubs/${clubId}/rounds/current/select`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mediaItemId: media.id }),
+      });
+    },
+    onSuccess() {
+      queryClient.invalidateQueries({ queryKey: ["club-round", clubId] });
+    },
+  });
+
+  const startRoundMutation = useMutation({
+    mutationFn: () => api(`/api/clubs/${clubId}/rounds`, { method: "POST" }),
+    onSuccess() {
+      queryClient.invalidateQueries({ queryKey: ["club-round", clubId] });
+    },
+  });
+
+  const advanceRoundMutation = useMutation({
+    mutationFn: () => api(`/api/clubs/${clubId}/rounds/current/advance`, { method: "POST" }),
+    onSuccess() {
+      queryClient.invalidateQueries({ queryKey: ["club-round", clubId] });
+    },
+  });
+
   const now = new Date();
   const upcomingEvents = clubEvents.filter((e) => new Date(e.startsAt) >= now);
   const pastEvents = clubEvents.filter((e) => new Date(e.startsAt) < now);
@@ -158,94 +331,16 @@ function ClubDetailPage() {
     setTimeout(() => setCopied(false), 2000);
   }
 
-  async function handleAddToSchedule(searchResult: {
-    externalId: string;
-    title: string;
-    authorOrDirector: string | null;
-    coverUrl: string | null;
-    year: number | null;
-    description: string | null;
-  }) {
-    setAddingToSchedule(true);
-    setScheduleError("");
-    try {
-      const media = await api<{ id: string }>("/api/media", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          externalId: searchResult.externalId,
-          mediaType: club!.mediaType,
-          title: searchResult.title,
-          authorOrDirector: searchResult.authorOrDirector,
-          coverUrl: searchResult.coverUrl,
-          year: searchResult.year,
-          description: searchResult.description,
-        }),
-      });
-      await api(`/api/clubs/${clubId}/schedule`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mediaItemId: media.id }),
-      });
-      queryClient.invalidateQueries({ queryKey: ["club-schedule", clubId] });
-      setShowAddSchedule(false);
-    } catch (err) {
-      console.error("Failed to add to schedule:", err);
-      setScheduleError("Kunne ikke legge til i programmet. Prøv igjen.");
-    } finally {
-      setAddingToSchedule(false);
-    }
-  }
-
-  async function handleCreateEvent(e: React.FormEvent) {
+  function handleCreateEvent(e: React.FormEvent) {
     e.preventDefault();
-    setEventLoading(true);
-    setEventError("");
-    try {
-      const hasActiveRound =
-        currentRound?.phase === "active" || currentRound?.phase === "selection";
-
-      const payload = {
-        title: eventTitle,
-        startsAt: new Date(eventStartsAt).toISOString(),
-        ...(eventDescription && { description: eventDescription }),
-        ...(eventLocation && { location: eventLocation }),
-        ...(eventEndsAt && { endsAt: new Date(eventEndsAt).toISOString() }),
-      };
-
-      let eventId: string;
-      if (hasActiveRound) {
-        // Create event AND link it to the current round
-        const result = await api<{ round: { id: string }; event: { id: string } }>(
-          `/api/clubs/${clubId}/rounds/current/event`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload),
-          },
-        );
-        eventId = result.event.id;
-        queryClient.invalidateQueries({ queryKey: ["club-events", clubId] });
-        queryClient.invalidateQueries({ queryKey: ["club-round", clubId] });
-      } else {
-        // No active round — fall back to plain event creation
-        const result = await api<{ id: string }>(`/api/clubs/${clubId}/events`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            ...payload,
-            ...(eventScheduleItemId && { scheduleItemId: eventScheduleItemId }),
-          }),
-        });
-        eventId = result.id;
-        queryClient.invalidateQueries({ queryKey: ["club-events", clubId] });
-      }
-      navigate({ to: "/events/$eventId", params: { eventId } });
-    } catch (err) {
-      setEventError(err instanceof Error ? err.message : "Kunne ikke opprette arrangement");
-    } finally {
-      setEventLoading(false);
-    }
+    createEventMutation.mutate({
+      title: eventTitle,
+      startsAt: eventStartsAt,
+      ...(eventDescription && { description: eventDescription }),
+      ...(eventLocation && { location: eventLocation }),
+      ...(eventEndsAt && { endsAt: eventEndsAt }),
+      ...(eventScheduleItemId && { scheduleItemId: eventScheduleItemId }),
+    });
   }
 
   function resetEventForm() {
@@ -255,41 +350,22 @@ function ClubDetailPage() {
     setEventStartsAt("");
     setEventEndsAt("");
     setEventScheduleItemId("");
-    setEventError("");
   }
 
-  async function handleCreateDiscussion(e: React.FormEvent) {
+  function handleCreateDiscussion(e: React.FormEvent) {
     e.preventDefault();
     if (!newDiscussionTitle.trim()) return;
-    try {
-      await api(`/api/clubs/${clubId}/discussions`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: newDiscussionTitle }),
-      });
-      queryClient.invalidateQueries({ queryKey: ["club-discussions", clubId] });
-      setNewDiscussionTitle("");
-      setShowNewDiscussion(false);
-    } catch (err) {
-      setEventError(err instanceof Error ? err.message : "Kunne ikke opprette diskusjon");
-    }
+    discussionMutation.mutate({ title: newDiscussionTitle });
   }
 
-  async function handleAddComment(e: React.FormEvent) {
+  function handleAddComment(e: React.FormEvent) {
     e.preventDefault();
     if (!commentText.trim() || !expandedThread) return;
-    try {
-      await api(`/api/discussions/${expandedThread}/comments`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: commentText }),
-      });
-      queryClient.invalidateQueries({ queryKey: ["discussion", expandedThread] });
-      setCommentText("");
-    } catch (err) {
-      setEventError(err instanceof Error ? err.message : "Kunne ikke legge til kommentar");
-    }
+    commentMutation.mutate({ text: commentText });
   }
+
+  // Program items available for selection (not already completed/current)
+  const selectableScheduleItems = schedule.filter((item) => item.status === "upcoming");
 
   return (
     <div className="flex flex-col gap-8">
@@ -338,27 +414,48 @@ function ClubDetailPage() {
             <div>
               <h3 className="font-semibold mb-2">Velg neste {club.mediaType === "book" ? "bok" : "film"}</h3>
               {isAdmin && currentRound.selectionMode === "admin_picks" && (
-                <div>
-                  <p className="text-sm text-muted-foreground mb-3">
-                    Søk og velg hva klubben skal {club.mediaType === "book" ? "lese" : "se"} neste gang.
-                  </p>
-                  <MediaSearch mediaType={club.mediaType} onSelect={async (result) => {
-                    try {
-                      const media = await api<{ id: string }>("/api/media", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ ...result, mediaType: club.mediaType }),
-                      });
-                      await api(`/api/clubs/${clubId}/rounds/current/select`, {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ mediaItemId: media.id }),
-                      });
-                      queryClient.invalidateQueries({ queryKey: ["club-round", clubId] });
-                    } catch (err) {
-                      setEventError(err instanceof Error ? err.message : "Kunne ikke velge media");
-                    }
-                  }} />
+                <div className="flex flex-col gap-4">
+                  {/* Select from program */}
+                  {selectableScheduleItems.length > 0 && (
+                    <div>
+                      <p className="text-sm text-muted-foreground mb-2">Fra programmet:</p>
+                      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                        {selectableScheduleItems.map((item) => (
+                          <button
+                            key={item.id}
+                            disabled={selectMediaMutation.isPending}
+                            onClick={() => selectMediaMutation.mutate(item.media.id)}
+                            className="group flex gap-3 rounded-xl border border-border bg-card p-3 text-left shadow-sm transition-all hover:border-primary/30 hover:shadow-md disabled:opacity-50"
+                          >
+                            {item.media.coverUrl && (
+                              <div className="w-10 aspect-[2/3] overflow-hidden rounded-md bg-muted shrink-0">
+                                <img src={item.media.coverUrl} alt={item.media.title} className="h-full w-full object-cover" />
+                              </div>
+                            )}
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium leading-tight truncate">{item.media.title}</p>
+                              {item.media.authorOrDirector && (
+                                <p className="text-xs text-muted-foreground truncate mt-0.5">{item.media.authorOrDirector}</p>
+                              )}
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {/* Search for new media */}
+                  <div>
+                    <p className="text-sm text-muted-foreground mb-2">
+                      {selectableScheduleItems.length > 0 ? "Eller søk etter noe nytt:" : `Søk og velg hva klubben skal ${club.mediaType === "book" ? "lese" : "se"} neste gang.`}
+                    </p>
+                    <MediaSearch
+                      mediaType={club.mediaType}
+                      onSelect={(result) => selectFromSearchMutation.mutate(result)}
+                    />
+                  </div>
+                  {(selectMediaMutation.isError || selectFromSearchMutation.isError) && (
+                    <p className="text-sm text-destructive">Kunne ikke velge media. Prøv igjen.</p>
+                  )}
                 </div>
               )}
               {!isAdmin && (
@@ -436,34 +533,35 @@ function ClubDetailPage() {
                 <Button variant="outline" size="sm">Skriv anmeldelse</Button>
               </Link>
               {isAdmin && (
-                <Button variant="outline" size="sm" onClick={async () => {
-                  try {
-                    await api(`/api/clubs/${clubId}/rounds/current/advance`, { method: "POST" });
-                    queryClient.invalidateQueries({ queryKey: ["club-round", clubId] });
-                  } catch (err) {
-                    setEventError(err instanceof Error ? err.message : "Kunne ikke avslutte runden");
-                  }
-                }}>
-                  Avslutt runde og start neste
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={advanceRoundMutation.isPending}
+                  onClick={() => advanceRoundMutation.mutate()}
+                >
+                  {advanceRoundMutation.isPending ? "Avslutter..." : "Avslutt runde og start neste"}
                 </Button>
               )}
             </div>
+          )}
+
+          {advanceRoundMutation.isError && (
+            <p className="text-sm text-destructive mt-2">Kunne ikke avslutte runden. Prøv igjen.</p>
           )}
         </section>
       )}
 
       {/* Start new round button (when no active round) */}
       {isAdmin && (!currentRound?.phase || currentRound.phase === "completed") && (
-        <Button onClick={async () => {
-          try {
-            await api(`/api/clubs/${clubId}/rounds`, { method: "POST" });
-            queryClient.invalidateQueries({ queryKey: ["club-round", clubId] });
-          } catch (err) {
-            setEventError(err instanceof Error ? err.message : "Kunne ikke starte ny runde");
-          }
-        }}>
-          Start ny runde
+        <Button
+          disabled={startRoundMutation.isPending}
+          onClick={() => startRoundMutation.mutate()}
+        >
+          {startRoundMutation.isPending ? "Starter..." : "Start ny runde"}
         </Button>
+      )}
+      {startRoundMutation.isError && (
+        <p className="text-sm text-destructive">Kunne ikke starte ny runde. Prøv igjen.</p>
       )}
 
       {/* Schedule - cover grid */}
@@ -482,30 +580,39 @@ function ClubDetailPage() {
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-            {schedule.map((item) => (
-              <Link key={item.id} to="/media/$mediaId" params={{ mediaId: item.media.id }}>
-                <div className="group flex flex-col gap-2">
-                  <div className="relative aspect-[2/3] overflow-hidden rounded-lg bg-muted shadow-sm ring-1 ring-black/5 transition-shadow group-hover:shadow-md">
-                    {item.media.coverUrl ? (
-                      <img src={item.media.coverUrl} alt={item.media.title} className="h-full w-full object-cover" />
-                    ) : (
-                      <div className="flex h-full w-full items-center justify-center p-3 text-xs text-muted-foreground text-center">{item.media.title}</div>
-                    )}
-                    {item.status === "current" && (
-                      <div className="absolute top-2 left-2">
-                        <Badge className="text-xs shadow-sm">Nå</Badge>
-                      </div>
-                    )}
+            {schedule.map((item) => {
+              const isActive = currentRound?.mediaItemId === item.media.id &&
+                currentRound?.phase !== "completed";
+              return (
+                <Link key={item.id} to="/media/$mediaId" params={{ mediaId: item.media.id }}>
+                  <div className="group flex flex-col gap-2">
+                    <div className={`relative aspect-[2/3] overflow-hidden rounded-lg bg-muted shadow-sm ring-1 transition-shadow group-hover:shadow-md ${isActive ? "ring-2 ring-primary" : "ring-black/5"}`}>
+                      {item.media.coverUrl ? (
+                        <img src={item.media.coverUrl} alt={item.media.title} className="h-full w-full object-cover" />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center p-3 text-xs text-muted-foreground text-center">{item.media.title}</div>
+                      )}
+                      {isActive && (
+                        <div className="absolute top-2 left-2">
+                          <PhaseBadge phase={currentRound!.phase} />
+                        </div>
+                      )}
+                      {!isActive && item.status === "completed" && (
+                        <div className="absolute top-2 left-2">
+                          <Badge variant="secondary" className="text-xs shadow-sm">Ferdig</Badge>
+                        </div>
+                      )}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium leading-tight truncate">{item.media.title}</p>
+                      {item.media.authorOrDirector && (
+                        <p className="text-xs text-muted-foreground truncate mt-0.5">{item.media.authorOrDirector}</p>
+                      )}
+                    </div>
                   </div>
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium leading-tight truncate">{item.media.title}</p>
-                    {item.media.authorOrDirector && (
-                      <p className="text-xs text-muted-foreground truncate mt-0.5">{item.media.authorOrDirector}</p>
-                    )}
-                  </div>
-                </div>
-              </Link>
-            ))}
+                </Link>
+              );
+            })}
           </div>
         )}
       </section>
@@ -585,13 +692,16 @@ function ClubDetailPage() {
               onChange={(e) => setNewDiscussionTitle(e.target.value)}
               autoFocus
             />
-            <Button type="submit" size="sm" disabled={!newDiscussionTitle.trim()}>
-              Opprett
+            <Button type="submit" size="sm" disabled={!newDiscussionTitle.trim() || discussionMutation.isPending}>
+              {discussionMutation.isPending ? "Oppretter..." : "Opprett"}
             </Button>
             <Button type="button" variant="outline" size="sm" onClick={() => { setShowNewDiscussion(false); setNewDiscussionTitle(""); }}>
               Avbryt
             </Button>
           </form>
+          {discussionMutation.isError && (
+            <p className="text-sm text-destructive mb-2">Kunne ikke opprette diskusjon. Prøv igjen.</p>
+          )}
         )}
 
         {discussions.length === 0 && !showNewDiscussion ? (
@@ -652,10 +762,13 @@ function ClubDetailPage() {
                           onChange={(e) => setCommentText(e.target.value)}
                           className="text-sm"
                         />
-                        <Button type="submit" size="sm" disabled={!commentText.trim()}>
-                          Send
+                        <Button type="submit" size="sm" disabled={!commentText.trim() || commentMutation.isPending}>
+                          {commentMutation.isPending ? "Sender..." : "Send"}
                         </Button>
                       </form>
+                      {commentMutation.isError && (
+                        <p className="text-sm text-destructive">Kunne ikke sende kommentar. Prøv igjen.</p>
+                      )}
                     )}
                   </div>
                 )}
@@ -675,14 +788,14 @@ function ClubDetailPage() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="max-h-[50vh] overflow-y-auto -mx-6 px-6">
-            {addingToSchedule ? (
+            {addToScheduleMutation.isPending ? (
               <p className="text-sm text-muted-foreground py-4 text-center">Legger til...</p>
             ) : (
-              <MediaSearch mediaType={club.mediaType} onSelect={handleAddToSchedule} />
+              <MediaSearch mediaType={club.mediaType} onSelect={(result) => addToScheduleMutation.mutate(result)} />
             )}
           </div>
-          {scheduleError && (
-            <p className="text-sm text-destructive">{scheduleError}</p>
+          {addToScheduleMutation.isError && (
+            <p className="text-sm text-destructive">Kunne ikke legge til i programmet. Prøv igjen.</p>
           )}
           <AlertDialogFooter>
             <AlertDialogCancel>Avbryt</AlertDialogCancel>
@@ -772,13 +885,15 @@ function ClubDetailPage() {
                 </Select>
               </div>
             )}
-            {eventError && (
-              <p className="text-sm text-destructive">{eventError}</p>
+            {createEventMutation.isError && (
+              <p className="text-sm text-destructive">
+                {createEventMutation.error?.message || "Kunne ikke opprette arrangement"}
+              </p>
             )}
             <AlertDialogFooter>
               <AlertDialogCancel>Avbryt</AlertDialogCancel>
-              <Button type="submit" disabled={eventLoading}>
-                {eventLoading ? "Oppretter..." : "Opprett arrangement"}
+              <Button type="submit" disabled={createEventMutation.isPending}>
+                {createEventMutation.isPending ? "Oppretter..." : "Opprett arrangement"}
               </Button>
             </AlertDialogFooter>
           </form>

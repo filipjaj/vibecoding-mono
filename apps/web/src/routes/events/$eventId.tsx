@@ -1,7 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api";
+import { useOptimisticMutation } from "@/lib/mutations";
 import { useSession } from "@/lib/auth-client";
 
 type EventDetail = {
@@ -16,20 +17,31 @@ export const Route = createFileRoute("/events/$eventId")({ component: EventDetai
 function EventDetailPage() {
   const { eventId } = Route.useParams();
   const { data: session } = useSession();
-  const queryClient = useQueryClient();
-
   const { data: event, isLoading } = useQuery({
     queryKey: ["event", eventId],
     queryFn: () => api<EventDetail>(`/api/events/${eventId}`),
   });
 
-  async function handleRsvp(status: "going" | "maybe" | "not_going") {
-    await api(`/api/events/${eventId}/rsvp`, {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status }),
-    });
-    queryClient.invalidateQueries({ queryKey: ["event", eventId] });
-  }
+  const rsvpMutation = useOptimisticMutation<void, "going" | "maybe" | "not_going">({
+    queryKey: ["event", eventId],
+    mutationFn: (status) =>
+      api(`/api/events/${eventId}/rsvp`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      }),
+    onMutate(status, qc) {
+      if (!session?.user) return;
+      qc.setQueryData<EventDetail>(["event", eventId], (old) => {
+        if (!old) return old;
+        const others = old.rsvps.filter((r) => r.user.id !== session.user.id);
+        return {
+          ...old,
+          rsvps: [...others, { status, user: { id: session.user.id, name: session.user.name, image: session.user.image ?? null } }],
+        };
+      });
+    },
+  });
 
   if (isLoading || !event) return <p className="text-muted-foreground py-12 text-center">Laster...</p>;
 
@@ -76,14 +88,20 @@ function EventDetailPage() {
       )}
 
       {session?.user && (
-        <div className="flex gap-2">
-          {(["going", "maybe", "not_going"] as const).map((status) => (
-            <Button key={status}
-              variant={myRsvp?.status === status ? "default" : "outline"}
-              onClick={() => handleRsvp(status)}>
-              {rsvpLabels[status]}
-            </Button>
-          ))}
+        <div className="flex flex-col gap-2">
+          <div className="flex gap-2">
+            {(["going", "maybe", "not_going"] as const).map((status) => (
+              <Button key={status}
+                variant={myRsvp?.status === status ? "default" : "outline"}
+                disabled={rsvpMutation.isPending}
+                onClick={() => rsvpMutation.mutate(status)}>
+                {rsvpLabels[status]}
+              </Button>
+            ))}
+          </div>
+          {rsvpMutation.isError && (
+            <p className="text-sm text-destructive">Kunne ikke oppdatere svar. Prøv igjen.</p>
+          )}
         </div>
       )}
 

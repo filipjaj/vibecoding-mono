@@ -10,6 +10,7 @@ import {
   mediaItems,
   clubMembers,
   clubMemberProgress,
+  clubSchedule,
   users,
 } from "../db/schema";
 import { authMiddleware } from "../lib/auth-middleware";
@@ -338,12 +339,32 @@ roundsRouter.post("/clubs/:clubId/rounds/current/advance", async (c) => {
   if (!club || !club.currentRoundId)
     return c.json({ error: "No current round" }, 404);
 
+  // Get round details before completing (need mediaItemId)
+  const [currentRound] = await db
+    .select()
+    .from(rounds)
+    .where(eq(rounds.id, club.currentRoundId));
+  if (!currentRound) return c.json({ error: "Round not found" }, 404);
+
   // Set completedAt on current round
   const [completed] = await db
     .update(rounds)
     .set({ completedAt: new Date() })
     .where(eq(rounds.id, club.currentRoundId))
     .returning();
+
+  // Mark matching schedule item as completed
+  if (currentRound?.mediaItemId) {
+    await db
+      .update(clubSchedule)
+      .set({ status: "completed" })
+      .where(
+        and(
+          eq(clubSchedule.clubId, clubId),
+          eq(clubSchedule.mediaItemId, currentRound.mediaItemId),
+        ),
+      );
+  }
 
   // Null out club's currentRoundId
   await db

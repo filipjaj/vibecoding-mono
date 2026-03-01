@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,6 +13,7 @@ import {
   SelectItem,
 } from "@/components/ui/select";
 import { api } from "@/lib/api";
+import { useOptimisticMutation } from "@/lib/mutations";
 
 type Club = {
   id: string;
@@ -24,6 +25,12 @@ type Club = {
   recurrenceRule: string | null;
 };
 
+type SettingsPayload = {
+  name: string;
+  description?: string;
+  selectionMode: string;
+};
+
 export const Route = createFileRoute("/clubs/$clubId/settings")({
   component: ClubSettingsPage,
 });
@@ -31,7 +38,6 @@ export const Route = createFileRoute("/clubs/$clubId/settings")({
 function ClubSettingsPage() {
   const { clubId } = Route.useParams();
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
 
   const { data: club, isLoading } = useQuery({
     queryKey: ["club", clubId],
@@ -41,7 +47,6 @@ function ClubSettingsPage() {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [selectionMode, setSelectionMode] = useState("");
-  const [saving, setSaving] = useState(false);
   const [initialized, setInitialized] = useState(false);
 
   useEffect(() => {
@@ -53,21 +58,37 @@ function ClubSettingsPage() {
     }
   }, [club, initialized]);
 
-  async function handleSave(e: React.FormEvent) {
-    e.preventDefault();
-    setSaving(true);
-    await api(`/api/clubs/${clubId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name,
-        description: description || undefined,
-        selectionMode,
+  const saveMutation = useOptimisticMutation<void, SettingsPayload>({
+    queryKey: ["club", clubId],
+    mutationFn: (payload) =>
+      api(`/api/clubs/${clubId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
       }),
+    onMutate(payload, qc) {
+      qc.setQueryData<Club>(["club", clubId], (old) => {
+        if (!old) return old;
+        return {
+          ...old,
+          name: payload.name,
+          description: payload.description ?? null,
+          selectionMode: payload.selectionMode,
+        };
+      });
+    },
+    onSuccess() {
+      navigate({ to: "/clubs/$clubId", params: { clubId } });
+    },
+  });
+
+  function handleSave(e: React.FormEvent) {
+    e.preventDefault();
+    saveMutation.mutate({
+      name,
+      description: description || undefined,
+      selectionMode,
     });
-    queryClient.invalidateQueries({ queryKey: ["club", clubId] });
-    setSaving(false);
-    navigate({ to: "/clubs/$clubId", params: { clubId } });
   }
 
   if (isLoading || !club)
@@ -112,9 +133,12 @@ function ClubSettingsPage() {
             </SelectContent>
           </Select>
         </div>
+        {saveMutation.isError && (
+          <p className="text-sm text-destructive">Kunne ikke lagre innstillinger. Prøv igjen.</p>
+        )}
         <div className="flex gap-2 mt-2">
-          <Button type="submit" disabled={saving}>
-            {saving ? "Lagrer..." : "Lagre"}
+          <Button type="submit" disabled={saveMutation.isPending}>
+            {saveMutation.isPending ? "Lagrer..." : "Lagre"}
           </Button>
           <Button
             type="button"

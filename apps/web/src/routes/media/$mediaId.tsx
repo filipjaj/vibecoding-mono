@@ -1,9 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { api } from "@/lib/api";
+import { useOptimisticMutation } from "@/lib/mutations";
 import { useSession } from "@/lib/auth-client";
 
 type MediaDetail = {
@@ -22,7 +23,6 @@ export const Route = createFileRoute("/media/$mediaId")({ component: MediaDetail
 function MediaDetailPage() {
   const { mediaId } = Route.useParams();
   const { data: session } = useSession();
-  const queryClient = useQueryClient();
   const [rating, setRating] = useState(0);
   const [hoverRating, setHoverRating] = useState(0);
   const [reviewText, setReviewText] = useState("");
@@ -40,25 +40,65 @@ function MediaDetailPage() {
 
   const currentShelfStatus = shelfItems?.find((i) => i.media.id === mediaId)?.status;
 
-  async function handleShelfAction(status: string) {
-    await api("/api/shelf", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ mediaItemId: mediaId, status }),
-    });
-    queryClient.invalidateQueries({ queryKey: ["shelf", session!.user.id] });
-  }
+  const shelfMutation = useOptimisticMutation<void, string>({
+    queryKey: ["shelf", session?.user?.id],
+    mutationFn: (status) =>
+      api("/api/shelf", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mediaItemId: mediaId, status }),
+      }),
+    onMutate(status, qc) {
+      qc.setQueryData<ShelfItem[]>(["shelf", session?.user?.id], (old) => {
+        if (!old) return old;
+        const exists = old.some((i) => i.media.id === mediaId);
+        if (exists) {
+          return old.map((i) =>
+            i.media.id === mediaId ? { ...i, status: status as ShelfItem["status"] } : i,
+          );
+        }
+        return [...old, { status: status as ShelfItem["status"], media: { id: mediaId } }];
+      });
+    },
+  });
 
-  async function submitReview(e: React.FormEvent) {
+  const reviewMutation = useOptimisticMutation<void, { rating: number; text?: string }>({
+    queryKey: ["media", mediaId],
+    mutationFn: (payload) =>
+      api(`/api/media/${mediaId}/reviews`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      }),
+    onMutate(payload, qc) {
+      if (!session?.user) return;
+      qc.setQueryData<MediaDetail>(["media", mediaId], (old) => {
+        if (!old) return old;
+        return {
+          ...old,
+          reviews: [
+            {
+              id: `temp-${Date.now()}`,
+              rating: payload.rating,
+              text: payload.text ?? null,
+              createdAt: new Date().toISOString(),
+              user: { id: session.user.id, name: session.user.name, image: session.user.image ?? null },
+            },
+            ...old.reviews,
+          ],
+        };
+      });
+    },
+    onSuccess() {
+      setRating(0);
+      setReviewText("");
+    },
+  });
+
+  function submitReview(e: React.FormEvent) {
     e.preventDefault();
     if (rating === 0) return;
-    await api(`/api/media/${mediaId}/reviews`, {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ rating, text: reviewText || undefined }),
-    });
-    queryClient.invalidateQueries({ queryKey: ["media", mediaId] });
-    setRating(0);
-    setReviewText("");
+    reviewMutation.mutate({ rating, text: reviewText || undefined });
   }
 
   if (isLoading || !media) return <p className="text-muted-foreground py-12 text-center">Laster...</p>;
@@ -113,12 +153,16 @@ function MediaDetailPage() {
                   key={status}
                   variant={currentShelfStatus === status ? "default" : "outline"}
                   size="sm"
-                  onClick={() => handleShelfAction(status)}
+                  disabled={shelfMutation.isPending}
+                  onClick={() => shelfMutation.mutate(status)}
                 >
                   {label}
                 </Button>
               ))}
             </div>
+          )}
+          {shelfMutation.isError && (
+            <p className="text-sm text-destructive">Kunne ikke oppdatere hylle. Prøv igjen.</p>
           )}
 
           {media.description && (
@@ -144,7 +188,12 @@ function MediaDetailPage() {
               ))}
             </div>
             <Textarea value={reviewText} onChange={(e) => setReviewText(e.target.value)} placeholder="Hva synes du?" />
-            <Button type="submit" disabled={rating === 0} className="w-fit">Publiser anmeldelse</Button>
+            {reviewMutation.isError && (
+              <p className="text-sm text-destructive">Kunne ikke publisere anmeldelse. Prøv igjen.</p>
+            )}
+            <Button type="submit" disabled={rating === 0 || reviewMutation.isPending} className="w-fit">
+              {reviewMutation.isPending ? "Publiserer..." : "Publiser anmeldelse"}
+            </Button>
           </form>
         </div>
       )}
