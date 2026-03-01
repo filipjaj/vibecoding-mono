@@ -10,6 +10,7 @@ import { discussionsRouter } from "./routes/discussions";
 import { usersRouter } from "./routes/users";
 import { feedRouter } from "./routes/feed";
 import { roundsRouter } from "./routes/rounds";
+import { selectionRouter } from "./routes/selection";
 
 type Bindings = {
   DATABASE_URL: string;
@@ -63,5 +64,6 @@ app.route("/api", discussionsRouter);
 app.route("/api", usersRouter);
 app.route("/api", feedRouter);
 app.route("/api", roundsRouter);
+app.route("/api", selectionRouter);
 
 export default app;
