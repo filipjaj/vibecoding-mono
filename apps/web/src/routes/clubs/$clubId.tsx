@@ -40,11 +40,6 @@ type ScheduleItem = {
   media: { id: string; title: string; authorOrDirector: string | null; coverUrl: string | null; year: number | null };
 };
 
-type ClubEvent = {
-  id: string; clubId: string; title: string; description: string | null;
-  location: string | null; startsAt: string; endsAt: string | null;
-};
-
 type DiscussionThread = {
   id: string; title: string; createdAt: string;
   createdBy: { id: string; name: string; image: string | null };
@@ -79,6 +74,26 @@ type CurrentRound = {
   pacing: {
     currentPage: number; totalPages: number; pagesRemaining: number;
     daysRemaining: number; pagesPerDay: number; aheadBehindDays: number;
+  } | null;
+};
+
+type RoundSummary = {
+  id: string;
+  clubId: string;
+  mediaItemId: string | null;
+  order: number;
+  eventId: string | null;
+  phaseOverride: Phase | null;
+  startedAt: string;
+  completedAt: string | null;
+  phase: Phase;
+  event: {
+    id: string; title: string; description: string | null;
+    location: string | null; startsAt: string; endsAt: string | null;
+  } | null;
+  media: {
+    id: string; title: string; authorOrDirector: string | null;
+    coverUrl: string | null; year: number | null;
   } | null;
 };
 
@@ -119,11 +134,6 @@ function ClubDetailPage() {
     queryFn: () => api<ScheduleItem[]>(`/api/clubs/${clubId}/schedule`),
   });
 
-  const { data: clubEvents = [] } = useQuery({
-    queryKey: ["club-events", clubId],
-    queryFn: () => api<ClubEvent[]>(`/api/clubs/${clubId}/events`),
-  });
-
   const { data: discussions = [] } = useQuery({
     queryKey: ["club-discussions", clubId],
     queryFn: () => api<DiscussionThread[]>(`/api/clubs/${clubId}/discussions`),
@@ -132,6 +142,11 @@ function ClubDetailPage() {
   const { data: currentRound } = useQuery({
     queryKey: ["club-round", clubId],
     queryFn: () => api<CurrentRound>(`/api/clubs/${clubId}/rounds/current`),
+  });
+
+  const { data: allRounds = [] } = useQuery({
+    queryKey: ["club-rounds", clubId],
+    queryFn: () => api<RoundSummary[]>(`/api/clubs/${clubId}/rounds`),
   });
 
   const { data: threadDetail } = useQuery({
@@ -262,7 +277,7 @@ function ClubDetailPage() {
       }
     },
     onSuccess(eventId) {
-      queryClient.invalidateQueries({ queryKey: ["club-events", clubId] });
+      queryClient.invalidateQueries({ queryKey: ["club-rounds", clubId] });
       queryClient.invalidateQueries({ queryKey: ["club-round", clubId] });
       navigate({ to: "/events/$eventId", params: { eventId } });
     },
@@ -328,9 +343,9 @@ function ClubDetailPage() {
     },
   });
 
-  const now = new Date();
-  const upcomingEvents = clubEvents.filter((e) => new Date(e.startsAt) >= now);
-  const pastEvents = clubEvents.filter((e) => new Date(e.startsAt) < now);
+  const completedRounds = allRounds
+    .filter((r) => r.phase === "completed")
+    .reverse();
 
   const isAdmin = club?.members.some(
     (m) => m.user.id === session?.user?.id && m.role === "admin",
@@ -405,14 +420,43 @@ function ClubDetailPage() {
               </Button>
             </Link>
           )}
-          {isAdmin && (
-            <Button variant="outline" onClick={() => setShowCreateEvent(true)}>
-              Opprett arrangement
-            </Button>
-          )}
           <Button variant="outline" onClick={copyInviteLink}>{copied ? "Kopiert!" : "Kopier invitasjonslenke"}</Button>
         </div>
       </div>
+
+      {/* Completed rounds */}
+      {completedRounds.length > 0 && (
+        <section className="flex flex-col gap-2">
+          <h2 className="text-lg font-semibold">Tidligere runder</h2>
+          {completedRounds.map((round) => (
+            <div key={round.id} className="flex items-center gap-3 rounded-xl border border-border bg-card p-3 shadow-sm">
+              {round.media?.coverUrl ? (
+                <div className="w-12 aspect-[2/3] overflow-hidden rounded-md bg-muted shrink-0">
+                  <img src={round.media.coverUrl} alt={round.media.title} className="h-full w-full object-cover" />
+                </div>
+              ) : (
+                <div className="flex w-12 aspect-[2/3] items-center justify-center rounded-md bg-muted text-xs text-muted-foreground shrink-0">
+                  ?
+                </div>
+              )}
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <p className="text-sm font-medium truncate">{round.media?.title ?? "Ingen bok valgt"}</p>
+                  <span className="text-xs text-muted-foreground shrink-0">Runde {round.order}</span>
+                </div>
+                {(round.event || round.media?.authorOrDirector) && (
+                  <p className="text-xs text-muted-foreground truncate mt-0.5">
+                    {round.media?.authorOrDirector}
+                    {round.media?.authorOrDirector && round.event && " \u00b7 "}
+                    {round.event && new Date(round.event.startsAt).toLocaleDateString("nb-NO", { day: "numeric", month: "short" })}
+                    {round.event?.location && ` \u00b7 ${round.event.location}`}
+                  </p>
+                )}
+              </div>
+            </div>
+          ))}
+        </section>
+      )}
 
       {/* Current Round / Phase */}
       {currentRound?.phase && currentRound.phase !== "completed" && (
@@ -601,88 +645,48 @@ function ClubDetailPage() {
         <p className="text-sm text-destructive">Kunne ikke starte ny runde. Prøv igjen.</p>
       )}
 
-      {/* Schedule - cover grid */}
+      {/* Upcoming program */}
       <section>
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold">Program</h2>
-          {isAdmin && (
-            <Button variant="outline" size="sm" onClick={() => setShowAddSchedule(true)}>
-              Legg til i programmet
-            </Button>
-          )}
+          <h2 className="text-lg font-semibold">Neste i programmet</h2>
         </div>
-        {schedule.length === 0 ? (
+        {selectableScheduleItems.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-border p-8 text-center text-muted-foreground">
-            Ingen elementer i programmet ennå.
+            Ingen kommende elementer i programmet.
+            {isAdmin && (
+              <Button variant="outline" size="sm" className="mt-3 mx-auto block" onClick={() => setShowAddSchedule(true)}>
+                Legg til i programmet
+              </Button>
+            )}
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-            {schedule.map((item) => {
-              const isActive = currentRound?.mediaItemId === item.media.id &&
-                currentRound?.phase !== "completed";
-              return (
-                <Link key={item.id} to="/media/$mediaId" params={{ mediaId: item.media.id }}>
-                  <div className="group flex flex-col gap-2">
-                    <div className={`relative aspect-[2/3] overflow-hidden rounded-lg bg-muted shadow-sm ring-1 transition-shadow group-hover:shadow-md ${isActive ? "ring-2 ring-primary" : "ring-black/5"}`}>
-                      {item.media.coverUrl ? (
-                        <img src={item.media.coverUrl} alt={item.media.title} className="h-full w-full object-cover" />
-                      ) : (
-                        <div className="flex h-full w-full items-center justify-center p-3 text-xs text-muted-foreground text-center">{item.media.title}</div>
-                      )}
-                      {isActive && (
-                        <div className="absolute top-2 left-2">
-                          <PhaseBadge phase={currentRound!.phase} />
-                        </div>
-                      )}
-                      {!isActive && item.status === "completed" && (
-                        <div className="absolute top-2 left-2">
-                          <Badge variant="secondary" className="text-xs shadow-sm">Ferdig</Badge>
-                        </div>
-                      )}
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium leading-tight truncate">{item.media.title}</p>
-                      {item.media.authorOrDirector && (
-                        <p className="text-xs text-muted-foreground truncate mt-0.5">{item.media.authorOrDirector}</p>
-                      )}
-                    </div>
+            {selectableScheduleItems.map((item) => (
+              <Link key={item.id} to="/media/$mediaId" params={{ mediaId: item.media.id }}>
+                <div className="group flex flex-col gap-2">
+                  <div className="relative aspect-[2/3] overflow-hidden rounded-lg bg-muted shadow-sm ring-1 ring-black/5 transition-shadow group-hover:shadow-md">
+                    {item.media.coverUrl ? (
+                      <img src={item.media.coverUrl} alt={item.media.title} className="h-full w-full object-cover" />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center p-3 text-xs text-muted-foreground text-center">{item.media.title}</div>
+                    )}
                   </div>
-                </Link>
-              );
-            })}
-          </div>
-        )}
-      </section>
-
-      {/* Events */}
-      <section>
-        <h2 className="text-lg font-semibold mb-4">Arrangementer</h2>
-        {clubEvents.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Ingen arrangementer ennå.</p>
-        ) : (
-          <div className="flex flex-col gap-3">
-            {upcomingEvents.map((evt) => {
-              const d = new Date(evt.startsAt);
-              return (
-                <Link key={evt.id} to="/events/$eventId" params={{ eventId: evt.id }}>
-                  <div className="flex items-center gap-4 rounded-2xl border border-border bg-card p-4 shadow-sm transition-colors hover:border-primary/20 hover:shadow">
-                    <div className="flex flex-col items-center justify-center w-12 h-12 rounded-xl bg-primary/10 text-primary shrink-0">
-                      <span className="text-xs font-medium uppercase leading-none">{d.toLocaleDateString("nb-NO", { month: "short" })}</span>
-                      <span className="text-lg font-bold leading-tight">{d.getDate()}</span>
-                    </div>
-                    <div className="min-w-0">
-                      <p className="font-medium truncate">{evt.title}</p>
-                      <p className="text-sm text-muted-foreground truncate">
-                        {d.toLocaleTimeString("nb-NO", { hour: "numeric", minute: "2-digit" })}
-                        {evt.location && ` · ${evt.location}`}
-                      </p>
-                    </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium leading-tight truncate">{item.media.title}</p>
+                    {item.media.authorOrDirector && (
+                      <p className="text-xs text-muted-foreground truncate mt-0.5">{item.media.authorOrDirector}</p>
+                    )}
                   </div>
-                </Link>
-              );
-            })}
-            {pastEvents.length > 0 && (
-              <p className="text-sm text-muted-foreground">+ {pastEvents.length} tidligere {pastEvents.length === 1 ? "arrangement" : "arrangementer"}</p>
+                </div>
+              </Link>
+            ))}
+            {isAdmin && (
+              <button
+                onClick={() => setShowAddSchedule(true)}
+                className="flex aspect-[2/3] items-center justify-center rounded-lg border-2 border-dashed border-border text-sm text-muted-foreground transition-colors hover:border-primary/30 hover:text-primary"
+              >
+                + Legg til
+              </button>
             )}
           </div>
         )}
