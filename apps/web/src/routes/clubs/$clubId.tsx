@@ -321,6 +321,7 @@ function ClubDetailPage() {
     mutationFn: () => api(`/api/clubs/${clubId}/rounds`, { method: "POST" }),
     onSuccess() {
       queryClient.invalidateQueries({ queryKey: ["club-round", clubId] });
+      queryClient.invalidateQueries({ queryKey: ["club-rounds", clubId] });
     },
   });
 
@@ -328,6 +329,7 @@ function ClubDetailPage() {
     mutationFn: () => api(`/api/clubs/${clubId}/rounds/current/advance`, { method: "POST" }),
     onSuccess() {
       queryClient.invalidateQueries({ queryKey: ["club-round", clubId] });
+      queryClient.invalidateQueries({ queryKey: ["club-rounds", clubId] });
     },
   });
 
@@ -441,7 +443,7 @@ function ClubDetailPage() {
               )}
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                  <p className="text-sm font-medium truncate">{round.media?.title ?? "Ingen bok valgt"}</p>
+                  <p className="text-sm font-medium truncate">{round.media?.title ?? (club.mediaType === "book" ? "Ingen bok valgt" : "Ingen film valgt")}</p>
                   <span className="text-xs text-muted-foreground shrink-0">Runde {round.order}</span>
                 </div>
                 {(round.event || round.media?.authorOrDirector) && (
