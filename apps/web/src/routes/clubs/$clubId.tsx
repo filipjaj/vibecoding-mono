@@ -722,23 +722,25 @@ function ClubDetailPage() {
         </div>
 
         {showNewDiscussion && (
-          <form onSubmit={handleCreateDiscussion} className="flex gap-2 mb-4">
-            <Input
-              placeholder="Diskusjonstema..."
-              value={newDiscussionTitle}
-              onChange={(e) => setNewDiscussionTitle(e.target.value)}
-              autoFocus
-            />
-            <Button type="submit" size="sm" disabled={!newDiscussionTitle.trim() || discussionMutation.isPending}>
-              {discussionMutation.isPending ? "Oppretter..." : "Opprett"}
-            </Button>
-            <Button type="button" variant="outline" size="sm" onClick={() => { setShowNewDiscussion(false); setNewDiscussionTitle(""); }}>
-              Avbryt
-            </Button>
-          </form>
-          {discussionMutation.isError && (
-            <p className="text-sm text-destructive mb-2">Kunne ikke opprette diskusjon. Prøv igjen.</p>
-          )}
+          <>
+            <form onSubmit={handleCreateDiscussion} className="flex gap-2 mb-4">
+              <Input
+                placeholder="Diskusjonstema..."
+                value={newDiscussionTitle}
+                onChange={(e) => setNewDiscussionTitle(e.target.value)}
+                autoFocus
+              />
+              <Button type="submit" size="sm" disabled={!newDiscussionTitle.trim() || discussionMutation.isPending}>
+                {discussionMutation.isPending ? "Oppretter..." : "Opprett"}
+              </Button>
+              <Button type="button" variant="outline" size="sm" onClick={() => { setShowNewDiscussion(false); setNewDiscussionTitle(""); }}>
+                Avbryt
+              </Button>
+            </form>
+            {discussionMutation.isError && (
+              <p className="text-sm text-destructive mb-2">Kunne ikke opprette diskusjon. Prøv igjen.</p>
+            )}
+          </>
         )}
 
         {discussions.length === 0 && !showNewDiscussion ? (
@@ -792,20 +794,22 @@ function ClubDetailPage() {
                       <p className="text-sm text-muted-foreground">Ingen kommentarer ennå.</p>
                     )}
                     {session?.user && (
-                      <form onSubmit={handleAddComment} className="flex gap-2">
-                        <Input
-                          placeholder="Skriv en kommentar..."
-                          value={commentText}
-                          onChange={(e) => setCommentText(e.target.value)}
-                          className="text-sm"
-                        />
-                        <Button type="submit" size="sm" disabled={!commentText.trim() || commentMutation.isPending}>
-                          {commentMutation.isPending ? "Sender..." : "Send"}
-                        </Button>
-                      </form>
-                      {commentMutation.isError && (
-                        <p className="text-sm text-destructive">Kunne ikke sende kommentar. Prøv igjen.</p>
-                      )}
+                      <>
+                        <form onSubmit={handleAddComment} className="flex gap-2">
+                          <Input
+                            placeholder="Skriv en kommentar..."
+                            value={commentText}
+                            onChange={(e) => setCommentText(e.target.value)}
+                            className="text-sm"
+                          />
+                          <Button type="submit" size="sm" disabled={!commentText.trim() || commentMutation.isPending}>
+                            {commentMutation.isPending ? "Sender..." : "Send"}
+                          </Button>
+                        </form>
+                        {commentMutation.isError && (
+                          <p className="text-sm text-destructive">Kunne ikke sende kommentar. Prøv igjen.</p>
+                        )}
+                      </>
                     )}
                   </div>
                 )}
