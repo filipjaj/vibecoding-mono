@@ -263,6 +263,12 @@ function ClubDetailPage() {
           `/api/clubs/${clubId}/rounds/current/event`,
           { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) },
         );
+        // Advance phase to "event" now that an event is linked
+        await api(`/api/clubs/${clubId}/rounds/current/phase`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ phase: "event" }),
+        });
         return result.event.id;
       } else {
         const result = await api<{ id: string }>(`/api/clubs/${clubId}/events`, {
