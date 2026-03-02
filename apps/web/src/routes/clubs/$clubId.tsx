@@ -466,29 +466,27 @@ function ClubDetailPage() {
           <div className="flex items-center gap-3 mb-4">
             <PhaseBadge phase={currentRound.phase} />
             <span className="text-sm text-muted-foreground">Runde {currentRound.order}</span>
-            {isAdmin && (
-              <Select
-                value={currentRound.phaseOverride ?? "auto"}
-                onValueChange={(v) =>
-                  phaseOverrideMutation.mutate(v === "auto" ? null : (v as Phase))
-                }
+            {isAdmin && currentRound.phase !== "review" && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 text-xs px-2"
+                disabled={phaseOverrideMutation.isPending}
+                onClick={() => {
+                  const nextPhase: Record<string, Phase> = {
+                    selection: "active",
+                    active: "event",
+                    event: "review",
+                  };
+                  const next = nextPhase[currentRound.phase];
+                  if (next) phaseOverrideMutation.mutate(next);
+                }}
               >
-                <SelectTrigger className="w-auto h-7 text-xs gap-1 px-2">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="auto">
-                    Automatisk fase
-                  </SelectItem>
-                  {(["selection", "active", "event", "review", "completed"] as const).map(
-                    (p) => (
-                      <SelectItem key={p} value={p}>
-                        {phaseConfig[p].label}
-                      </SelectItem>
-                    ),
-                  )}
-                </SelectContent>
-              </Select>
+                {phaseOverrideMutation.isPending ? "..." : `Hopp til ${phaseConfig[
+                  currentRound.phase === "selection" ? "active" :
+                  currentRound.phase === "active" ? "event" : "review"
+                ].label.toLowerCase()}`}
+              </Button>
             )}
           </div>
 
