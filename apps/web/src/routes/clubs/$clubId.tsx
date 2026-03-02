@@ -584,7 +584,10 @@ function ClubDetailPage() {
                 </div>
               )}
               {!currentRound.event && isAdmin && (
-                <Button variant="outline" size="sm" onClick={() => setShowCreateEvent(true)}>
+                <Button variant="outline" size="sm" onClick={() => {
+                  setEventTitle(`${currentRound.media!.title} — diskusjon`);
+                  setShowCreateEvent(true);
+                }}>
                   Planlegg arrangement
                 </Button>
               )}
@@ -862,7 +865,9 @@ function ClubDetailPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Opprett arrangement</AlertDialogTitle>
             <AlertDialogDescription>
-              Planlegg et nytt arrangement for denne klubben.
+              {currentRound?.media
+                ? `Planlegg et arrangement for ${currentRound.media.title}.`
+                : "Planlegg et nytt arrangement for denne klubben."}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <form onSubmit={handleCreateEvent} className="flex flex-col gap-4">
@@ -915,7 +920,7 @@ function ClubDetailPage() {
                 />
               </div>
             </div>
-            {schedule.length > 0 && (
+            {schedule.length > 0 && !currentRound?.media && (
               <div className="flex flex-col gap-1.5">
                 <Label>Koble til programelement</Label>
                 <Select value={eventScheduleItemId} onValueChange={(v) => setEventScheduleItemId(v ?? "")}>
