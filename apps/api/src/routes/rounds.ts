@@ -94,8 +94,16 @@ roundsRouter.get("/clubs/:clubId/rounds", async (c) => {
           .where(eq(events.id, round.eventId));
         event = e ?? null;
       }
+      let media = null;
+      if (round.mediaItemId) {
+        const [m] = await db
+          .select()
+          .from(mediaItems)
+          .where(eq(mediaItems.id, round.mediaItemId));
+        media = m ?? null;
+      }
       const phase = derivePhase(round, event);
-      return { ...round, phase, event };
+      return { ...round, phase, event, media };
     }),
   );
 
